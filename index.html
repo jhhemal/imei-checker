@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dubai IMEI Scanner</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+<style>
+:root{
+    --bg:#f4f7fb;
+    --card:#ffffff;
+    --text:#142033;
+    --muted:#718096;
+    --primary:#2563eb;
+    --primary-dark:#1d4ed8;
+    --success:#16a34a;
+    --success-bg:#ecfdf3;
+    --danger:#dc2626;
+    --danger-bg:#fef2f2;
+    --warning:#d97706;
+    --warning-bg:#fffbeb;
+    --border:#e5e7eb;
+    --shadow:0 12px 35px rgba(15,23,42,.08);
+}
+
+*{box-sizing:border-box}
+
+body{
+    margin:0;
+    min-height:100vh;
+    font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    background:
+      radial-gradient(circle at top left,#e9f1ff 0,transparent 32%),
+      var(--bg);
+    color:var(--text);
+}
+
+.header{
+    background:#0f172a;
+    color:#fff;
+    padding:18px 28px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    position:sticky;
+    top:0;
+    z-index:20;
+    box-shadow:0 5px 25px rgba(15,23,42,.16);
+}
+
+.brand{
+    display:flex;
+    align-items:center;
+    gap:12px;
+}
+
+.logo{
+    width:42px;
+    height:42px;
+    display:grid;
+    place-items:center;
+    border-radius:12px;
+    background:linear-gradient(135deg,#3b82f6,#2563eb);
+    font-weight:900;
+    font-size:21px;
+}
+
+.brand-title{
+    font-size:20px;
+    font-weight:850;
+}
+
+.brand-subtitle{
+    margin-top:2px;
+    color:#94a3b8;
+    font-size:12px;
+}
+
+.live{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    color:#cbd5e1;
+    font-size:13px;
+}
+
+.dot{
+    width:9px;
+    height:9px;
+    border-radius:50%;
+    background:#22c55e;
+    box-shadow:0 0 0 4px rgba(34,197,94,.14);
+}
+
+.container{
+    width:min(1000px,94%);
+    margin:28px auto 50px;
+}
+
+.stats{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px;
+    margin-bottom:18px;
+}
+
+.stat{
+    background:rgba(255,255,255,.96);
+    border:1px solid rgba(226,232,240,.85);
+    border-radius:18px;
+    padding:20px 22px;
+    box-shadow:var(--shadow);
+}
+
+.stat-label{
+    color:var(--muted);
+    font-size:12px;
+    font-weight:800;
+    text-transform:uppercase;
+    letter-spacing:.8px;
+}
+
+.stat-number{
+    margin-top:6px;
+    font-size:34px;
+    font-weight:900;
+    color:var(--primary);
+}
+
+.card{
+    background:rgba(255,255,255,.97);
+    border:1px solid rgba(226,232,240,.9);
+    border-radius:20px;
+    box-shadow:var(--shadow);
+}
+
+.scanner{
+    padding:30px 24px;
+    text-align:center;
+    margin-bottom:18px;
+}
+
+.scan-icon{
+    width:62px;
+    height:62px;
+    display:grid;
+    place-items:center;
+    margin:0 auto 13px;
+    border-radius:18px;
+    background:#eff6ff;
+    color:var(--primary);
+    font-size:29px;
+    font-weight:900;
+}
+
+h1,h2,h3{margin:0}
+
+.scanner h2{
+    font-size:22px;
+}
+
+.help{
+    color:var(--muted);
+    font-size:14px;
+    margin-top:6px;
+}
+
+#imeiInput{
+    display:block;
+    width:min(680px,100%);
+    margin:23px auto 0;
+    padding:19px 22px;
+    border:2px solid #dbe3ee;
+    border-radius:14px;
+    outline:none;
+    text-align:center;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:27px;
+    font-weight:750;
+    letter-spacing:1px;
+    color:#0f172a;
+    transition:.2s;
+}
+
+#imeiInput:focus{
+    border-color:var(--primary);
+    box-shadow:0 0 0 5px rgba(37,99,235,.10);
+}
+
+#result{
+    display:none;
+    width:min(680px,100%);
+    margin:15px auto 0;
+    padding:15px;
+    border-radius:12px;
+    font-size:20px;
+    font-weight:850;
+    animation:pop .2s ease;
+}
+
+@keyframes pop{
+    from{transform:scale(.97);opacity:.4}
+    to{transform:scale(1);opacity:1}
+}
+
+.success{
+    display:block !important;
+    background:var(--success-bg);
+    color:#15803d;
+    border:1px solid #bbf7d0;
+}
+
+.duplicate{
+    display:block !important;
+    background:var(--warning-bg);
+    color:#b45309;
+    border:1px solid #fde68a;
+}
+
+.error{
+    display:block !important;
+    background:var(--danger-bg);
+    color:#b91c1c;
+    border:1px solid #fecaca;
+}
+
+.list-card{
+    overflow:hidden;
+}
+
+.list-header{
+    padding:20px 22px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:14px;
+    border-bottom:1px solid #f1f5f9;
+}
+
+.list-title{
+    font-size:17px;
+    font-weight:850;
+}
+
+.actions{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+}
+
+button{
+    border:0;
+    border-radius:9px;
+    padding:10px 14px;
+    font-family:inherit;
+    font-weight:800;
+    font-size:12px;
+    cursor:pointer;
+    transition:.15s;
+}
+
+button:hover{transform:translateY(-1px)}
+button:active{transform:translateY(0)}
+
+.btn-primary{
+    background:linear-gradient(135deg,#3b82f6,#2563eb);
+    color:white;
+}
+
+.btn-secondary{
+    background:#f1f5f9;
+    color:#475569;
+}
+
+.table-wrap{
+    max-height:470px;
+    overflow:auto;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+th,td{
+    padding:13px 20px;
+    border-bottom:1px solid #f1f5f9;
+    text-align:left;
+}
+
+th{
+    position:sticky;
+    top:0;
+    z-index:3;
+    background:#f8fafc;
+    color:#64748b;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:.7px;
+}
+
+td{
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:14px;
+}
+
+.empty{
+    text-align:center;
+    padding:45px 20px;
+    color:#94a3b8;
+}
+
+@media(max-width:700px){
+    .header{padding:15px 17px}
+    .live{display:none}
+    .container{margin-top:18px}
+    .stats{grid-template-columns:1fr}
+    #imeiInput{font-size:20px}
+    .list-header{
+        align-items:flex-start;
+        flex-direction:column;
+    }
+    .actions{width:100%}
+    .actions button{flex:1}
+}
+</style>
+</head>
+
+<body>
+
+<header class="header">
+    <div class="brand">
+        <div class="logo">D</div>
+        <div>
+            <div class="brand-title">Dubai IMEI Scanner</div>
+            <div class="brand-subtitle">Shared Live Scan List</div>
+        </div>
+    </div>
+
+    <div class="live">
+        <span class="dot"></span>
+        <span id="connectionText">Connected</span>
+    </div>
+</header>
+
+<main class="container">
+
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-label">Total Scanned</div>
+            <div id="totalCount" class="stat-number">0</div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-label">Latest IMEI</div>
+            <div id="latestImei" class="stat-number" style="font-size:20px">—</div>
+        </div>
+    </div>
+
+    <section class="card scanner">
+        <div class="scan-icon">⌁</div>
+        <h2>Scan IMEI</h2>
+        <div class="help">Scan or enter an IMEI and press Enter</div>
+
+        <input
+            id="imeiInput"
+            type="text"
+            inputmode="numeric"
+            autocomplete="off"
+            placeholder="Scan IMEI Here"
+            autofocus
+        >
+
+        <div id="result"></div>
+    </section>
+
+    <section class="card list-card">
+
+        <div class="list-header">
+            <div>
+                <div class="list-title">Scanned IMEIs</div>
+                <div class="help">Live shared list from all computers</div>
+            </div>
+
+            <div class="actions">
+                <button class="btn-secondary" onclick="exportCSV()">Export CSV</button>
+                <button class="btn-primary" onclick="exportXLSX()">Export XLSX</button>
+            </div>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>IMEI</th>
+                    </tr>
+                </thead>
+                <tbody id="imeiTable"></tbody>
+            </table>
+
+            <div id="emptyState" class="empty">
+                No IMEIs scanned yet.
+            </div>
+        </div>
+
+    </section>
+
+</main>
+
+<script>
+/*
+====================================================
+1. CREATE YOUR SUPABASE PROJECT
+2. RUN supabase.sql
+3. REPLACE THESE TWO VALUES
+====================================================
+*/
+
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+
+const db = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+);
+
+const input = document.getElementById("imeiInput");
+const result = document.getElementById("result");
+const totalCount = document.getElementById("totalCount");
+const latestImei = document.getElementById("latestImei");
+const imeiTable = document.getElementById("imeiTable");
+const emptyState = document.getElementById("emptyState");
+const connectionText = document.getElementById("connectionText");
+
+let scans = [];
+
+
+/* CLEAN SCANNER INPUT */
+function cleanImei(value){
+    return String(value)
+        .trim()
+        .replace(/\D/g,"");
+}
+
+
+/* SHOW SCAN RESULT */
+function showResult(message,type){
+
+    result.textContent = message;
+
+    if(type === "success"){
+        result.className = "success";
+    }else if(type === "duplicate"){
+        result.className = "duplicate";
+    }else{
+        result.className = "error";
+    }
+}
+
+
+/* LOAD ALL SCANS */
+async function loadScans(){
+
+    const { data, error } = await db
+        .from("dubai_scans")
+        .select("imei,created_at")
+        .order("created_at",{
+            ascending:false
+        });
+
+    if(error){
+        console.error(error);
+        connectionText.textContent = "Connection Error";
+        return;
+    }
+
+    scans = data || [];
+
+    renderScans();
+}
+
+
+/* RENDER LIVE LIST */
+function renderScans(){
+
+    imeiTable.innerHTML = "";
+
+    totalCount.textContent = scans.length;
+
+    latestImei.textContent =
+        scans.length
+        ? scans[0].imei
+        : "—";
+
+    emptyState.style.display =
+        scans.length
+        ? "none"
+        : "block";
+
+    scans.forEach(scan => {
+
+        const row =
+            document.createElement("tr");
+
+        const cell =
+            document.createElement("td");
+
+        cell.textContent =
+            scan.imei;
+
+        row.appendChild(cell);
+
+        imeiTable.appendChild(row);
+    });
+}
+
+
+/* SCAN IMEI */
+async function scanImei(){
+
+    const imei =
+        cleanImei(input.value);
+
+    input.value = "";
+
+    input.focus();
+
+    if(!imei){
+        return;
+    }
+
+    /*
+    The database has a UNIQUE / PRIMARY KEY on IMEI.
+    This protects against duplicate scans from ALL computers.
+    */
+
+    const { data, error } = await db
+        .from("dubai_scans")
+        .insert({
+            imei:imei
+        })
+        .select()
+        .single();
+
+    if(error){
+
+        if(
+            error.code === "23505" ||
+            String(error.message)
+                .toLowerCase()
+                .includes("duplicate")
+        ){
+            showResult(
+                "⚠ IMEI Already Scanned",
+                "duplicate"
+            );
+
+            beep("duplicate");
+
+            return;
+        }
+
+        console.error(error);
+
+        showResult(
+            "✕ Unable to Save IMEI",
+            "error"
+        );
+
+        beep("error");
+
+        return;
+    }
+
+    showResult(
+        "✓ IMEI Saved",
+        "success"
+    );
+
+    beep("success");
+}
+
+
+/* ENTER KEY */
+input.addEventListener(
+    "keydown",
+    function(event){
+
+        if(event.key === "Enter"){
+
+            event.preventDefault();
+
+            scanImei();
+        }
+    }
+);
+
+
+/* REALTIME UPDATES FROM OTHER COMPUTERS */
+db.channel("dubai-imei-live")
+    .on(
+        "postgres_changes",
+        {
+            event:"INSERT",
+            schema:"public",
+            table:"dubai_scans"
+        },
+        payload => {
+
+            const newScan =
+                payload.new;
+
+            if(
+                !scans.some(
+                    scan =>
+                        scan.imei ===
+                        newScan.imei
+                )
+            ){
+                scans.unshift(
+                    newScan
+                );
+
+                renderScans();
+            }
+        }
+    )
+    .subscribe(status => {
+
+        if(status === "SUBSCRIBED"){
+            connectionText.textContent =
+                "Live";
+        }
+    });
+
+
+/* EXPORT CSV */
+function exportCSV(){
+
+    /*
+    The first row is exactly:
+    IMEI
+    */
+
+    const rows = [
+        ["IMEI"],
+        ...scans.map(
+            scan => [scan.imei]
+        )
+    ];
+
+    const csv =
+        rows
+        .map(row =>
+            row
+            .map(value =>
+                `"${String(value)
+                    .replace(/"/g,'""')}"`
+            )
+            .join(",")
+        )
+        .join("\n");
+
+    const blob =
+        new Blob(
+            [csv],
+            {
+                type:
+                "text/csv;charset=utf-8;"
+            }
+        );
+
+    downloadBlob(
+        blob,
+        "dubai_imei_scans.csv"
+    );
+}
+
+
+/* EXPORT XLSX */
+function exportXLSX(){
+
+    /*
+    First row in Excel is:
+    IMEI
+    */
+
+    const worksheet =
+        XLSX.utils.aoa_to_sheet([
+            ["IMEI"],
+            ...scans.map(
+                scan => [scan.imei]
+            )
+        ]);
+
+    const workbook =
+        XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(
+        workbook,
+        worksheet,
+        "IMEI"
+    );
+
+    XLSX.writeFile(
+        workbook,
+        "dubai_imei_scans.xlsx"
+    );
+}
+
+
+/* DOWNLOAD CSV */
+function downloadBlob(
+    blob,
+    filename
+){
+
+    const url =
+        URL.createObjectURL(blob);
+
+    const link =
+        document.createElement("a");
+
+    link.href = url;
+
+    link.download = filename;
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    link.remove();
+
+    URL.revokeObjectURL(url);
+}
+
+
+/* SOUND */
+function beep(type){
+
+    try{
+
+        const AudioContext =
+            window.AudioContext ||
+            window.webkitAudioContext;
+
+        const ctx =
+            new AudioContext();
+
+        const oscillator =
+            ctx.createOscillator();
+
+        const gain =
+            ctx.createGain();
+
+        oscillator.connect(gain);
+        gain.connect(ctx.destination);
+
+        if(type === "success"){
+            oscillator.frequency.value = 880;
+        }else if(type === "duplicate"){
+            oscillator.frequency.value = 420;
+        }else{
+            oscillator.frequency.value = 220;
+        }
+
+        gain.gain.setValueAtTime(
+            .12,
+            ctx.currentTime
+        );
+
+        gain.gain
+            .exponentialRampToValueAtTime(
+                .001,
+                ctx.currentTime + .18
+            );
+
+        oscillator.start();
+
+        oscillator.stop(
+            ctx.currentTime + .18
+        );
+
+    }catch(error){}
+}
+
+
+/* INITIAL LOAD */
+loadScans();
+</script>
+
+</body>
+</html>
