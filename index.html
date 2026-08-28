@@ -6,84 +6,48 @@
   <title>IMEI Web App</title>
 
   <link rel="stylesheet" href="styles.css" />
-
-  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <!-- XLSX export -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 </head>
 
 <body>
 
-  <div class="app-shell">
-
-    <!-- SIDEBAR -->
-    <aside class="sidebar" id="sidebar">
+  <header class="app-header">
+    <div class="header-inner">
 
       <div class="brand">
         <div class="brand-mark">I</div>
-
         <div class="brand-copy">
           <div class="brand-title">IMEI System</div>
           <div class="brand-subtitle">Inventory Web App</div>
         </div>
       </div>
 
-      <nav class="nav">
-
-        <button
-          class="nav-item active"
-          data-page="matchPage"
-          type="button"
-        >
+      <nav class="header-nav">
+        <button class="nav-item active" data-page="matchPage" type="button">
           <span class="nav-icon">⌕</span>
           <span>IMEI Match</span>
         </button>
 
-        <button
-          class="nav-item"
-          data-page="dubaiPage"
-          type="button"
-        >
+        <button class="nav-item" data-page="dubaiPage" type="button">
           <span class="nav-icon">↗</span>
           <span>Dubai Scan</span>
         </button>
-
       </nav>
 
-    </aside>
+    </div>
+  </header>
 
+  <main class="main">
 
-    <!-- MAIN -->
-    <main class="main">
+    <section class="page-heading">
+      <h1 id="pageTitle">IMEI Match</h1>
+      <p id="pageSubtitle">Verify IMEIs against your saved list</p>
+    </section>
 
-      <!-- TOP BAR -->
-      <header class="topbar">
+    <div class="content">
 
-        <button
-          class="menu-toggle"
-          id="menuToggle"
-          type="button"
-          aria-label="Open menu"
-        >
-          ☰
-        </button>
-
-        <div>
-          <h1 id="pageTitle">IMEI Match</h1>
-          <p id="pageSubtitle">Verify IMEIs against your saved list</p>
-        </div>
-
-      </header>
-
-
-      <div class="content">
-
-        <!-- ======================================================
-             PAGE 1: IMEI MATCH
-        ======================================================= -->
-        <section id="matchPage" class="page active">
+      <section id="matchPage" class="page active">
 
           <div class="stats-grid">
 
@@ -327,10 +291,9 @@
         </section>
 
 
-        <!-- ======================================================
-             PAGE 2: DUBAI SCAN
-        ======================================================= -->
-        <section id="dubaiPage" class="page">
+        
+
+      <section id="dubaiPage" class="page">
 
           <div class="stats-grid two-stats">
 
@@ -436,15 +399,10 @@
 
         </section>
 
-      </div>
 
-    </main>
-
-  </div>
-
-  <div id="sidebarOverlay" class="sidebar-overlay"></div>
+    </div>
+  </main>
 
   <script src="script.js"></script>
-
 </body>
 </html>

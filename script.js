@@ -95,16 +95,6 @@ const pageTitle =
 const pageSubtitle =
     document.getElementById("pageSubtitle");
 
-const sidebar =
-    document.getElementById("sidebar");
-
-const sidebarOverlay =
-    document.getElementById("sidebarOverlay");
-
-const menuToggle =
-    document.getElementById("menuToggle");
-
-
 navItems.forEach(item => {
 
     item.addEventListener("click", () => {
@@ -146,7 +136,6 @@ function showPage(pageId){
     pageSubtitle.textContent =
         pageInfo[pageId].subtitle;
 
-    closeSidebar();
 
     if(pageId === "matchPage"){
         matchScanInput.focus();
@@ -159,29 +148,6 @@ function showPage(pageId){
             initializeDubai();
         }
     }
-}
-
-
-menuToggle.addEventListener(
-    "click",
-    () => {
-
-        sidebar.classList.toggle("open");
-        sidebarOverlay.classList.toggle("show");
-    }
-);
-
-
-sidebarOverlay.addEventListener(
-    "click",
-    closeSidebar
-);
-
-
-function closeSidebar(){
-
-    sidebar.classList.remove("open");
-    sidebarOverlay.classList.remove("show");
 }
 
 
