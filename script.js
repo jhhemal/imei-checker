@@ -296,6 +296,15 @@ const exportMatchHistoryBtn =
 const clearMatchHistoryBtn =
     document.getElementById("clearMatchHistoryBtn");
 
+const salesCsvInput =
+    document.getElementById("salesCsvInput");
+
+const uploadSalesCsvBtn =
+    document.getElementById("uploadSalesCsvBtn");
+
+const salesCsvMessage =
+    document.getElementById("salesCsvMessage");
+
 
 function loadMatchData(){
 
@@ -894,6 +903,176 @@ exportMatchHistoryBtn.addEventListener(
             "text/csv;charset=utf-8;"
         );
     }
+);
+
+
+
+/* SALES CSV IMPORT */
+
+let salesCsvMessageTimer = null;
+
+function showSalesCsvMessage(
+    message,
+    success
+){
+
+    clearTimeout(
+        salesCsvMessageTimer
+    );
+
+    salesCsvMessage.textContent =
+        message;
+
+    salesCsvMessage.className =
+        success
+        ? "inline-message message-success"
+        : "inline-message message-error";
+
+    salesCsvMessage.style.display =
+        "block";
+
+    salesCsvMessageTimer =
+        setTimeout(
+            () => {
+                salesCsvMessage.style.display =
+                    "none";
+            },
+            4500
+        );
+}
+
+
+async function loadSalesCsv(){
+
+    const file =
+        salesCsvInput.files[0];
+
+    if(!file){
+
+        showSalesCsvMessage(
+            "Choose a CSV file first.",
+            false
+        );
+
+        return;
+    }
+
+    try{
+
+        const data =
+            await file.arrayBuffer();
+
+        const workbook =
+            XLSX.read(
+                data,
+                {type:"array"}
+            );
+
+        const sheet =
+            workbook.Sheets[
+                workbook.SheetNames[0]
+            ];
+
+        const rows =
+            XLSX.utils.sheet_to_json(
+                sheet,
+                {
+                    defval:"",
+                    raw:false
+                }
+            );
+
+        if(!rows.length){
+
+            showSalesCsvMessage(
+                "The CSV file is empty.",
+                false
+            );
+
+            return;
+        }
+
+        const imeiColumn =
+            Object.keys(rows[0])
+            .find(
+                key =>
+                    String(key)
+                    .trim()
+                    .toLowerCase() ===
+                    "imei"
+            );
+
+        if(!imeiColumn){
+
+            showSalesCsvMessage(
+                'Could not find a column named "IMEI".',
+                false
+            );
+
+            return;
+        }
+
+        const uniqueImeis =
+            [
+                ...new Set(
+                    rows
+                    .map(
+                        row =>
+                            cleanImei(
+                                row[imeiColumn]
+                            )
+                    )
+                    .filter(Boolean)
+                )
+            ];
+
+        let added = 0;
+        let duplicates = 0;
+
+        uniqueImeis.forEach(
+            imei => {
+
+                if(
+                    matchImeis.includes(
+                        imei
+                    )
+                ){
+                    duplicates++;
+                }
+                else{
+                    matchImeis.push(
+                        imei
+                    );
+                    added++;
+                }
+            }
+        );
+
+        renderMatchPage();
+
+        showSalesCsvMessage(
+            `${uniqueImeis.length} IMEI(s) read. ${added} added, ${duplicates} already in the list.`,
+            true
+        );
+
+        salesCsvInput.value = "";
+        matchScanInput.focus();
+
+    }catch(error){
+
+        console.error(error);
+
+        showSalesCsvMessage(
+            "Unable to read this CSV file.",
+            false
+        );
+    }
+}
+
+
+uploadSalesCsvBtn.addEventListener(
+    "click",
+    loadSalesCsv
 );
 
 

@@ -21,3 +21,18 @@ Typical future updates:
 - Replace styles.css if needed
 - Replace script.js if needed
 - KEEP your existing config.js
+
+
+SALES CSV IMEI CHECK
+--------------------
+The IMEI Match page now has "Check IMEIs From Sales CSV".
+
+Choose a CSV file that contains a column named:
+IMEI
+
+Click "Load Sales CSV".
+
+The IMEIs are added to the current verification list.
+Any duplicates already in the list are skipped.
+
+The uploaded sale_variations.csv contains 128 unique IMEIs.

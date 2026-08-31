@@ -134,6 +134,32 @@
 
             <div class="card-body">
 
+              <div class="csv-import-box">
+                <div>
+                  <strong>Check IMEIs From Sales CSV</strong>
+                  <p class="muted">Upload a sales CSV containing an IMEI column.</p>
+                </div>
+
+                <div class="button-row csv-import-actions">
+                  <input
+                    id="salesCsvInput"
+                    class="file-input"
+                    type="file"
+                    accept=".csv,text/csv"
+                  />
+
+                  <button
+                    id="uploadSalesCsvBtn"
+                    class="btn btn-primary"
+                    type="button"
+                  >
+                    Load Sales CSV
+                  </button>
+                </div>
+              </div>
+
+              <div id="salesCsvMessage" class="inline-message"></div>
+
               <div class="tabs">
 
                 <button
