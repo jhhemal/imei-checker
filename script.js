@@ -50,8 +50,8 @@ add table public.dubai_scans;
    SUPABASE CONFIG
 ===================================================== */
 
-const SUPABASE_URL = "YOUR_SUPABASE_URL";
-const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const SUPABASE_URL = "https://bharypgmukejhzqverhd.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJoYXJ5cGdtdWtlamh6cXZlcmhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5NDI2ODgsImV4cCI6MjEwMzUxODY4OH0.0HkUrr4AB0BU65z1UYaDMt5JyZMBgq7Vyg-GO0nau2s";
 
 let db = null;
 
