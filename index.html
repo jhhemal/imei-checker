@@ -24,15 +24,10 @@
       </div>
 
       <nav class="header-nav">
-        <button class="nav-item active" data-page="matchPage" type="button">
-          <span class="nav-icon">⌕</span>
-          <span>IMEI Match</span>
-        </button>
-
-        <button class="nav-item" data-page="dubaiPage" type="button">
-          <span class="nav-icon">↗</span>
-          <span>Dubai Scan</span>
-        </button>
+        <button class="nav-item active" data-page="dashboardPage" type="button"><span class="nav-icon">◫</span><span>Dashboard</span></button>
+        <button class="nav-item" data-page="matchPage" type="button"><span class="nav-icon">⌕</span><span>IMEI Match</span></button>
+        <button class="nav-item" data-page="dubaiPage" type="button"><span class="nav-icon">↗</span><span>Dubai Scan</span></button>
+        <button class="nav-item" data-page="searchPage" type="button"><span class="nav-icon">⌕</span><span>Search</span></button>
       </nav>
 
     </div>
@@ -41,13 +36,28 @@
   <main class="main">
 
     <section class="page-heading">
-      <h1 id="pageTitle">IMEI Match</h1>
-      <p id="pageSubtitle">Verify IMEIs against your saved list</p>
+      <h1 id="pageTitle">Dashboard</h1>
+      <p id="pageSubtitle">Dubai shipment scanning overview</p>
     </section>
 
     <div class="content">
 
-      <section id="matchPage" class="page active">
+      <section id="dashboardPage" class="page active">
+        <div class="stats-grid">
+          <article class="stat-card"><span class="stat-label">Current Shipment</span><strong id="dashShipmentName" class="stat-value compact-value">—</strong></article>
+          <article class="stat-card"><span class="stat-label">Current Shipment Scans</span><strong id="dashShipmentCount" class="stat-value stat-blue">0</strong></article>
+          <article class="stat-card"><span class="stat-label">Scanned Today</span><strong id="dashTodayCount" class="stat-value stat-green">0</strong></article>
+        </div>
+        <section class="card">
+          <div class="section-head"><div><div class="title-with-status"><h2>Current Dubai Shipment</h2><span id="dashShipmentStatus" class="live-status"><span class="live-dot"></span>Loading</span></div><p id="dashShipmentMeta" class="muted">Loading shipment...</p></div></div>
+        </section>
+        <section class="card">
+          <div class="section-head"><div><h2>Recent Shipments</h2><p class="muted">Latest Dubai shipment activity</p></div></div>
+          <div class="table-scroll"><table class="data-table"><thead><tr><th>Shipment</th><th>Status</th><th>Scans</th><th>Created</th></tr></thead><tbody id="recentShipmentsBody"></tbody></table><div id="recentShipmentsEmpty" class="empty-state">No shipments yet.</div></div>
+        </section>
+      </section>
+
+      <section id="matchPage" class="page">
 
           <div class="stats-grid">
 
@@ -294,115 +304,56 @@
         
 
       <section id="dubaiPage" class="page">
+        <div class="stats-grid">
+          <article class="stat-card"><span class="stat-label">Current Shipment</span><strong id="dubaiShipmentName" class="stat-value compact-value">—</strong></article>
+          <article class="stat-card"><span class="stat-label">Total Scanned</span><strong id="dubaiTotal" class="stat-value stat-blue">0</strong></article>
+          <article class="stat-card"><span class="stat-label">Latest IMEI</span><strong id="dubaiLatest" class="stat-value latest-value">—</strong></article>
+        </div>
 
-          <div class="stats-grid two-stats">
-
-            <article class="stat-card">
-              <span class="stat-label">Total Scanned</span>
-              <strong id="dubaiTotal" class="stat-value stat-blue">0</strong>
-            </article>
-
-            <article class="stat-card">
-              <span class="stat-label">Latest IMEI</span>
-              <strong id="dubaiLatest" class="stat-value latest-value">—</strong>
-            </article>
-
-          </div>
-
-
-          <section class="card scanner-card">
-
-            <div class="scanner-icon">⌁</div>
-
-            <h2>Dubai IMEI Scan</h2>
-
-            <p class="muted">
-              Scan or enter an IMEI and press Enter
-            </p>
-
-            <input
-              id="dubaiScanInput"
-              class="scan-input"
-              type="text"
-              inputmode="numeric"
-              autocomplete="off"
-              placeholder="Scan IMEI Here"
-            />
-
-            <div id="dubaiResult" class="scan-result"></div>
-
-          </section>
-
-
-          <section class="card">
-
-            <div class="section-head">
-
-              <div>
-                <div class="title-with-status">
-                  <h2>Scanned IMEIs</h2>
-                  <span id="dubaiLiveStatus" class="live-status">
-                    <span class="live-dot"></span>
-                    Connecting
-                  </span>
-                </div>
-
-                <p class="muted">
-                  Shared list from all computers
-                </p>
-              </div>
-
-              <div class="button-row">
-
-                <button
-                  id="exportDubaiCsvBtn"
-                  class="btn btn-light"
-                  type="button"
-                >
-                  Export CSV
-                </button>
-
-                <button
-                  id="exportDubaiXlsxBtn"
-                  class="btn btn-primary"
-                  type="button"
-                >
-                  Export XLSX
-                </button>
-
-              </div>
-
-            </div>
-
-
-            <div class="table-scroll">
-
-              <table class="data-table">
-
-                <thead>
-                  <tr>
-                    <th>IMEI</th>
-                  </tr>
-                </thead>
-
-                <tbody id="dubaiTableBody"></tbody>
-
-              </table>
-
-              <div id="dubaiEmpty" class="empty-state">
-                No IMEIs scanned yet.
-              </div>
-
-            </div>
-
-          </section>
-
+        <section class="card scanner-card">
+          <div class="title-with-status centered-status"><span id="dubaiLiveStatus" class="live-status"><span class="live-dot"></span>Connecting</span></div>
+          <div class="scanner-icon">⌁</div>
+          <h2>Dubai IMEI Scan</h2>
+          <p id="dubaiScannerHelp" class="muted">Scan or enter an IMEI and press Enter</p>
+          <input id="dubaiScanInput" class="scan-input" type="text" inputmode="numeric" autocomplete="off" placeholder="Scan IMEI Here" />
+          <div id="dubaiResult" class="scan-result"></div>
         </section>
 
+        <section class="card">
+          <div class="section-head">
+            <div><h2>Scanned IMEIs</h2><p class="muted">Shared list from all computers</p></div>
+            <div class="button-row">
+              <button id="copyDubaiBtn" class="btn btn-light" type="button">Copy All IMEIs</button>
+              <button id="exportDubaiCsvBtn" class="btn btn-light" type="button">Export CSV</button>
+              <button id="exportDubaiXlsxBtn" class="btn btn-primary" type="button">Export XLSX</button>
+            </div>
+          </div>
+          <div class="table-scroll"><table class="data-table"><thead><tr><th>IMEI</th></tr></thead><tbody id="dubaiTableBody"></tbody></table><div id="dubaiEmpty" class="empty-state">No IMEIs scanned yet.</div></div>
+          <div class="card-actions shipment-actions">
+            <button id="undoDubaiBtn" class="btn btn-warning" type="button">Undo Last Scan</button>
+            <button id="closeShipmentBtn" class="btn btn-danger" type="button">Close Shipment</button>
+            <button id="newShipmentBtn" class="btn btn-primary hidden" type="button">Start New Shipment</button>
+          </div>
+        </section>
+      </section>
+
+      <section id="searchPage" class="page">
+        <section class="card scanner-card search-card">
+          <div class="scanner-icon">⌕</div>
+          <h2>Search IMEI</h2>
+          <p class="muted">Check whether an IMEI was scanned and which shipment it belongs to</p>
+          <div class="search-row">
+            <input id="searchImeiInput" class="scan-input" type="text" inputmode="numeric" autocomplete="off" placeholder="Enter IMEI" />
+            <button id="searchImeiBtn" class="btn btn-primary search-btn" type="button">Search</button>
+          </div>
+          <div id="searchResultCard" class="search-result-card hidden"></div>
+        </section>
+      </section>
 
     </div>
   </main>
 
+  <script src="config.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

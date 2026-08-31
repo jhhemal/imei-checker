@@ -50,15 +50,20 @@ add table public.dubai_scans;
    SUPABASE CONFIG
 ===================================================== */
 
-const SUPABASE_URL = "https://bharypgmukejhzqverhd.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJoYXJ5cGdtdWtlamh6cXZlcmhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5NDI2ODgsImV4cCI6MjEwMzUxODY4OH0.0HkUrr4AB0BU65z1UYaDMt5JyZMBgq7Vyg-GO0nau2s";
+const SUPABASE_URL =
+    window.APP_CONFIG?.SUPABASE_URL || "";
+
+const SUPABASE_ANON_KEY =
+    window.APP_CONFIG?.SUPABASE_KEY || "";
 
 let db = null;
 
 if(
     window.supabase &&
+    SUPABASE_URL &&
+    SUPABASE_ANON_KEY &&
     SUPABASE_URL !== "YOUR_SUPABASE_URL" &&
-    SUPABASE_ANON_KEY !== "YOUR_SUPABASE_ANON_KEY"
+    SUPABASE_ANON_KEY !== "YOUR_SUPABASE_PUBLISHABLE_KEY"
 ){
     db = window.supabase.createClient(
         SUPABASE_URL,
@@ -72,15 +77,10 @@ if(
 ===================================================== */
 
 const pageInfo = {
-    matchPage:{
-        title:"IMEI Match",
-        subtitle:"Verify IMEIs against your saved list"
-    },
-
-    dubaiPage:{
-        title:"Dubai Scan",
-        subtitle:"Shared IMEI scanning from multiple computers"
-    }
+    dashboardPage:{title:"Dashboard",subtitle:"Dubai shipment scanning overview"},
+    matchPage:{title:"IMEI Match",subtitle:"Verify IMEIs against your saved list"},
+    dubaiPage:{title:"Dubai Scan",subtitle:"Shared IMEI scanning from multiple computers"},
+    searchPage:{title:"Search IMEI",subtitle:"Find a scanned IMEI and its shipment"}
 };
 
 const navItems =
@@ -137,17 +137,10 @@ function showPage(pageId){
         pageInfo[pageId].subtitle;
 
 
-    if(pageId === "matchPage"){
-        matchScanInput.focus();
-    }
-
-    if(pageId === "dubaiPage"){
-        dubaiScanInput.focus();
-
-        if(!dubaiInitialized){
-            initializeDubai();
-        }
-    }
+    if(pageId === "dashboardPage") refreshDashboard();
+    if(pageId === "matchPage") matchScanInput.focus();
+    if(pageId === "dubaiPage") { initializeDubai(); dubaiScanInput.focus(); }
+    if(pageId === "searchPage") searchImeiInput.focus();
 }
 
 
@@ -161,6 +154,15 @@ function cleanImei(value){
         .trim()
         .replace(/\D/g,"");
 }
+
+function formatDateTime(value){ return value ? new Date(value).toLocaleString() : "—"; }
+function makeShipmentName(){
+    const now=new Date();
+    const date=now.toLocaleDateString("en-US",{month:"2-digit",day:"2-digit",year:"numeric"});
+    const time=now.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
+    return `Dubai ${date} ${time}`;
+}
+function escapeHtml(value){ return String(value).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;"); }
 
 
 function beep(type){
@@ -940,468 +942,201 @@ document
 
 
 /* =====================================================
-   DUBAI SCAN PAGE
+   DUBAI SHIPMENT / SCANNING
 ===================================================== */
+let currentShipment=null;
+let dubaiScans=[];
+let dubaiRealtimeChannel=null;
+let shipmentRealtimeChannel=null;
+let dubaiReady=false;
 
-let dubaiScans = [];
-let dubaiInitialized = false;
-let dubaiRealtimeChannel = null;
-
-const dubaiTotal =
-    document.getElementById("dubaiTotal");
-
-const dubaiLatest =
-    document.getElementById("dubaiLatest");
-
-const dubaiScanInput =
-    document.getElementById("dubaiScanInput");
-
-const dubaiResult =
-    document.getElementById("dubaiResult");
-
-const dubaiTableBody =
-    document.getElementById("dubaiTableBody");
-
-const dubaiEmpty =
-    document.getElementById("dubaiEmpty");
-
-const dubaiLiveStatus =
-    document.getElementById("dubaiLiveStatus");
-
-const exportDubaiCsvBtn =
-    document.getElementById("exportDubaiCsvBtn");
-
-const exportDubaiXlsxBtn =
-    document.getElementById("exportDubaiXlsxBtn");
-
+const dubaiShipmentName=document.getElementById("dubaiShipmentName");
+const dubaiTotal=document.getElementById("dubaiTotal");
+const dubaiLatest=document.getElementById("dubaiLatest");
+const dubaiScanInput=document.getElementById("dubaiScanInput");
+const dubaiScannerHelp=document.getElementById("dubaiScannerHelp");
+const dubaiResult=document.getElementById("dubaiResult");
+const dubaiTableBody=document.getElementById("dubaiTableBody");
+const dubaiEmpty=document.getElementById("dubaiEmpty");
+const dubaiLiveStatus=document.getElementById("dubaiLiveStatus");
+const copyDubaiBtn=document.getElementById("copyDubaiBtn");
+const exportDubaiCsvBtn=document.getElementById("exportDubaiCsvBtn");
+const exportDubaiXlsxBtn=document.getElementById("exportDubaiXlsxBtn");
+const undoDubaiBtn=document.getElementById("undoDubaiBtn");
+const closeShipmentBtn=document.getElementById("closeShipmentBtn");
+const newShipmentBtn=document.getElementById("newShipmentBtn");
 
 async function initializeDubai(){
-
-    dubaiInitialized = true;
-
-    if(!db){
-
-        setDubaiStatus(
-            "Supabase Not Connected",
-            "error"
-        );
-
-        showDubaiResult(
-            "Add your Supabase URL and anon key in script.js",
-            "error"
-        );
-
-        return;
-    }
-
-    await loadDubaiScans();
-
-    subscribeDubaiRealtime();
+    if(!db){ setDubaiStatus("Supabase Not Connected","error"); showDubaiResult("Add your Supabase URL and publishable key in config.js","error"); return; }
+    if(!dubaiReady){ dubaiReady=true; await loadCurrentShipment(true); subscribeDubaiRealtime(); subscribeShipmentRealtime(); }
+    else await loadCurrentShipment(false);
 }
 
+async function loadCurrentShipment(createIfMissing){
+    const {data,error}=await db.from("shipments").select("*").eq("status","open").order("created_at",{ascending:false}).limit(1).maybeSingle();
+    if(error){ console.error(error); setDubaiStatus("Connection Error","error"); return; }
+    if(data){ currentShipment=data; await loadDubaiScans(); updateShipmentUI(); return; }
+    if(createIfMissing){ await createNewShipment(); return; }
+    currentShipment=null; dubaiScans=[]; renderDubaiScans(); updateShipmentUI();
+}
+
+async function createNewShipment(){
+    if(!db) return;
+    const {data,error}=await db.from("shipments").insert({name:makeShipmentName(),status:"open"}).select().single();
+    if(error){ console.error(error); showDubaiResult("✕ Unable to Start Shipment","error"); return; }
+    currentShipment=data; dubaiScans=[]; renderDubaiScans(); updateShipmentUI(); showDubaiResult("✓ New Shipment Started","success"); await refreshDashboard(); dubaiScanInput.focus();
+}
 
 async function loadDubaiScans(){
+    if(!db||!currentShipment){ dubaiScans=[]; renderDubaiScans(); return; }
+    const {data,error}=await db.from("dubai_scans").select("imei,created_at,shipment_id").eq("shipment_id",currentShipment.id).order("created_at",{ascending:false});
+    if(error){ console.error(error); setDubaiStatus("Connection Error","error"); return; }
+    dubaiScans=data||[]; renderDubaiScans();
+}
 
-    const { data, error } =
-        await db
-        .from("dubai_scans")
-        .select("imei,created_at")
-        .order(
-            "created_at",
-            {ascending:false}
-        );
+function renderDubaiScans(){
+    dubaiTableBody.innerHTML=""; dubaiTotal.textContent=dubaiScans.length; dubaiLatest.textContent=dubaiScans.length?dubaiScans[0].imei:"—"; dubaiEmpty.style.display=dubaiScans.length?"none":"block";
+    dubaiScans.forEach(scan=>{ const row=document.createElement("tr"); const cell=document.createElement("td"); cell.textContent=scan.imei; row.appendChild(cell); dubaiTableBody.appendChild(row); });
+    undoDubaiBtn.disabled=dubaiScans.length===0||!currentShipment||currentShipment.status!=="open";
+}
 
-    if(error){
-
-        console.error(error);
-
-        setDubaiStatus(
-            "Connection Error",
-            "error"
-        );
-
-        return;
-    }
-
-    dubaiScans =
-        data || [];
-
+function updateShipmentUI(){
+    const isOpen=currentShipment&&currentShipment.status==="open";
+    dubaiShipmentName.textContent=currentShipment?currentShipment.name:"No Open Shipment";
+    dubaiScanInput.disabled=!isOpen;
+    closeShipmentBtn.classList.toggle("hidden",!isOpen);
+    newShipmentBtn.classList.toggle("hidden",isOpen);
+    if(isOpen){ dubaiScannerHelp.textContent="Scan or enter an IMEI and press Enter"; setDubaiStatus("Live","connected"); }
+    else{ dubaiScannerHelp.textContent="This shipment is closed. Start a new shipment to scan."; setDubaiStatus("Shipment Closed","closed"); }
     renderDubaiScans();
 }
 
-
-function renderDubaiScans(){
-
-    dubaiTableBody.innerHTML = "";
-
-    dubaiTotal.textContent =
-        dubaiScans.length;
-
-    dubaiLatest.textContent =
-        dubaiScans.length
-        ? dubaiScans[0].imei
-        : "—";
-
-    dubaiEmpty.style.display =
-        dubaiScans.length
-        ? "none"
-        : "block";
-
-    dubaiScans.forEach(scan => {
-
-        const row =
-            document.createElement("tr");
-
-        const cell =
-            document.createElement("td");
-
-        cell.textContent =
-            scan.imei;
-
-        row.appendChild(cell);
-
-        dubaiTableBody.appendChild(row);
-    });
+function showDubaiResult(message,type){
+    dubaiResult.textContent=message; dubaiResult.className="scan-result";
+    dubaiResult.classList.add(type==="success"?"result-success":type==="duplicate"?"result-duplicate":"result-error");
 }
-
-
-function showDubaiResult(
-    message,
-    type
-){
-
-    dubaiResult.textContent =
-        message;
-
-    dubaiResult.className =
-        "scan-result";
-
-    if(type === "success"){
-        dubaiResult.classList.add(
-            "result-success"
-        );
-    }
-    else if(type === "duplicate"){
-        dubaiResult.classList.add(
-            "result-duplicate"
-        );
-    }
-    else{
-        dubaiResult.classList.add(
-            "result-error"
-        );
-    }
+function setDubaiStatus(text,type){
+    dubaiLiveStatus.className="live-status"; dubaiLiveStatus.innerHTML='<span class="live-dot"></span>'+text;
+    if(type==="connected") dubaiLiveStatus.classList.add("connected");
+    if(type==="closed") dubaiLiveStatus.classList.add("closed");
+    if(type==="error") dubaiLiveStatus.classList.add("error");
 }
-
-
-function setDubaiStatus(
-    text,
-    type
-){
-
-    dubaiLiveStatus.className =
-        "live-status";
-
-    dubaiLiveStatus.innerHTML =
-        '<span class="live-dot"></span>' +
-        text;
-
-    if(type === "connected"){
-        dubaiLiveStatus.classList.add(
-            "connected"
-        );
-    }
-
-    if(type === "error"){
-        dubaiLiveStatus.classList.add(
-            "error"
-        );
-    }
-}
-
 
 async function saveDubaiScan(){
-
-    const imei =
-        cleanImei(
-            dubaiScanInput.value
-        );
-
-    dubaiScanInput.value = "";
-    dubaiScanInput.focus();
-
-    if(!imei){
-        return;
-    }
-
-    if(!db){
-
-        showDubaiResult(
-            "Supabase is not connected.",
-            "error"
-        );
-
-        beep("error");
-
-        return;
-    }
-
-    const { data, error } =
-        await db
-        .from("dubai_scans")
-        .insert({
-            imei
-        })
-        .select()
-        .single();
-
+    const imei=cleanImei(dubaiScanInput.value); dubaiScanInput.value=""; dubaiScanInput.focus(); if(!imei) return;
+    if(!db){ showDubaiResult("Supabase is not connected.","error"); beep("error"); return; }
+    if(!currentShipment||currentShipment.status!=="open"){ showDubaiResult("✕ Shipment Is Closed","error"); beep("error"); return; }
+    const {data,error}=await db.from("dubai_scans").insert({imei,shipment_id:currentShipment.id}).select().single();
     if(error){
-
-        const duplicate =
-            error.code === "23505" ||
-            String(error.message)
-            .toLowerCase()
-            .includes("duplicate");
-
-        if(duplicate){
-
-            showDubaiResult(
-                "⚠ IMEI Already Scanned",
-                "duplicate"
-            );
-
-            beep("duplicate");
-
-            return;
-        }
-
-        console.error(error);
-
-        showDubaiResult(
-            "✕ Unable to Save IMEI",
-            "error"
-        );
-
-        beep("error");
-
-        return;
+        const duplicate=error.code==="23505"||String(error.message).toLowerCase().includes("duplicate");
+        if(duplicate){ showDubaiResult("⚠ IMEI Already Scanned","duplicate"); beep("duplicate"); return; }
+        console.error(error); showDubaiResult("✕ Unable to Save IMEI","error"); beep("error"); return;
     }
-
-    showDubaiResult(
-        "✓ IMEI Saved",
-        "success"
-    );
-
-    beep("success");
-
-    /*
-    Realtime normally inserts this row into the UI.
-    This fallback keeps the scanning computer responsive
-    even if the realtime event arrives slightly later.
-    */
-
-    if(
-        !dubaiScans.some(
-            scan =>
-                scan.imei === data.imei
-        )
-    ){
-        dubaiScans.unshift(data);
-
-        renderDubaiScans();
-    }
+    showDubaiResult("✓ IMEI Saved","success"); beep("success");
+    if(!dubaiScans.some(scan=>scan.imei===data.imei)){ dubaiScans.unshift(data); renderDubaiScans(); }
+    refreshDashboard();
 }
 
+dubaiScanInput.addEventListener("keydown",event=>{ if(event.key==="Enter"){ event.preventDefault(); saveDubaiScan(); } });
 
-dubaiScanInput.addEventListener(
-    "keydown",
-    event => {
+async function undoLastDubaiScan(){
+    if(!db||!currentShipment||currentShipment.status!=="open"||dubaiScans.length===0) return;
+    const latest=dubaiScans[0];
+    if(!confirm(`Undo the last scan?\n\n${latest.imei}`)) return;
+    const {error}=await db.from("dubai_scans").delete().eq("imei",latest.imei).eq("shipment_id",currentShipment.id);
+    if(error){ console.error(error); showDubaiResult("✕ Unable to Undo Scan","error"); return; }
+    dubaiScans=dubaiScans.filter(scan=>scan.imei!==latest.imei); renderDubaiScans(); showDubaiResult("✓ Last Scan Removed","success"); refreshDashboard();
+}
 
-        if(event.key !== "Enter"){
-            return;
-        }
+async function closeCurrentShipment(){
+    if(!db||!currentShipment||currentShipment.status!=="open") return;
+    if(!confirm(`Close this shipment?\n\n${currentShipment.name}\n\nAfter closing, no more IMEIs can be scanned into it.`)) return;
+    const {data,error}=await db.from("shipments").update({status:"closed",closed_at:new Date().toISOString()}).eq("id",currentShipment.id).select().single();
+    if(error){ console.error(error); showDubaiResult("✕ Unable to Close Shipment","error"); return; }
+    currentShipment=data; updateShipmentUI(); showDubaiResult("✓ Shipment Closed","success"); refreshDashboard();
+}
 
-        event.preventDefault();
-
-        saveDubaiScan();
-    }
-);
-
+undoDubaiBtn.addEventListener("click",undoLastDubaiScan);
+closeShipmentBtn.addEventListener("click",closeCurrentShipment);
+newShipmentBtn.addEventListener("click",async()=>{ if(confirm("Start a new Dubai shipment?")) await createNewShipment(); });
 
 function subscribeDubaiRealtime(){
-
-    if(
-        !db ||
-        dubaiRealtimeChannel
-    ){
-        return;
-    }
-
-    dubaiRealtimeChannel =
-        db
-        .channel("dubai-imei-live")
-        .on(
-            "postgres_changes",
-            {
-                event:"INSERT",
-                schema:"public",
-                table:"dubai_scans"
-            },
-            payload => {
-
-                const newScan =
-                    payload.new;
-
-                if(
-                    !dubaiScans.some(
-                        scan =>
-                            scan.imei ===
-                            newScan.imei
-                    )
-                ){
-                    dubaiScans.unshift(
-                        newScan
-                    );
-
-                    renderDubaiScans();
-                }
-            }
-        )
-        .subscribe(status => {
-
-            if(status === "SUBSCRIBED"){
-
-                setDubaiStatus(
-                    "Live",
-                    "connected"
-                );
-            }
-
-            if(
-                status === "CHANNEL_ERROR" ||
-                status === "TIMED_OUT"
-            ){
-
-                setDubaiStatus(
-                    "Connection Error",
-                    "error"
-                );
-            }
-        });
+    if(!db||dubaiRealtimeChannel) return;
+    dubaiRealtimeChannel=db.channel("dubai-imei-live-v2")
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"dubai_scans"},payload=>{ const newScan=payload.new; if(currentShipment&&newScan.shipment_id===currentShipment.id&&!dubaiScans.some(scan=>scan.imei===newScan.imei)){ dubaiScans.unshift(newScan); renderDubaiScans(); } refreshDashboard(); })
+      .on("postgres_changes",{event:"DELETE",schema:"public",table:"dubai_scans"},()=>{ if(currentShipment) loadDubaiScans(); refreshDashboard(); })
+      .subscribe(status=>{ if(status==="SUBSCRIBED"&&currentShipment&&currentShipment.status==="open") setDubaiStatus("Live","connected"); if(status==="CHANNEL_ERROR"||status==="TIMED_OUT") setDubaiStatus("Connection Error","error"); });
+}
+function subscribeShipmentRealtime(){
+    if(!db||shipmentRealtimeChannel) return;
+    shipmentRealtimeChannel=db.channel("dubai-shipments-live").on("postgres_changes",{event:"*",schema:"public",table:"shipments"},async()=>{ await loadCurrentShipment(false); await refreshDashboard(); }).subscribe();
 }
 
+copyDubaiBtn.addEventListener("click",async()=>{
+    if(!dubaiScans.length){ showDubaiResult("No IMEIs to Copy","error"); return; }
+    const text=["IMEI",...dubaiScans.map(scan=>scan.imei)].join("\n");
+    try{ await navigator.clipboard.writeText(text); showDubaiResult("✓ IMEIs Copied","success"); } catch(error){ showDubaiResult("✕ Unable to Copy IMEIs","error"); }
+});
+exportDubaiCsvBtn.addEventListener("click",()=>{
+    const rows=[["IMEI"],...dubaiScans.map(scan=>[scan.imei])];
+    const csv=rows.map(row=>row.map(value=>`"${String(value).replace(/"/g,'""')}"`).join(",")).join("\n");
+    downloadTextFile(csv,"dubai_imei_scans.csv","text/csv;charset=utf-8;");
+});
+exportDubaiXlsxBtn.addEventListener("click",()=>{
+    const worksheet=XLSX.utils.aoa_to_sheet([["IMEI"],...dubaiScans.map(scan=>[scan.imei])]);
+    const workbook=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook,worksheet,"IMEI"); XLSX.writeFile(workbook,"dubai_imei_scans.xlsx");
+});
 
-/* DUBAI EXPORT CSV */
+/* SEARCH */
+const searchImeiInput=document.getElementById("searchImeiInput");
+const searchImeiBtn=document.getElementById("searchImeiBtn");
+const searchResultCard=document.getElementById("searchResultCard");
+async function searchImei(){
+    const imei=cleanImei(searchImeiInput.value); if(!imei) return;
+    if(!db){ renderSearchError("Supabase is not connected."); return; }
+    searchResultCard.className="search-result-card"; searchResultCard.innerHTML='<div class="search-result-title">Searching...</div>';
+    const {data,error}=await db.from("dubai_scans").select('imei,created_at,shipment_id,shipments(id,name,status,created_at,closed_at)').eq("imei",imei).maybeSingle();
+    if(error){ console.error(error); renderSearchError("Unable to search this IMEI."); return; }
+    if(!data){ searchResultCard.className="search-result-card not-found"; searchResultCard.innerHTML=`<div class="search-result-title">✕ IMEI Not Found</div><div class="search-detail"><strong>IMEI</strong><span>${escapeHtml(imei)}</span></div>`; return; }
+    const shipment=data.shipments||{};
+    searchResultCard.className="search-result-card found";
+    searchResultCard.innerHTML=`<div class="search-result-title">✓ IMEI Found</div><div class="search-detail"><strong>IMEI</strong><span>${escapeHtml(data.imei)}</span><strong>Shipment</strong><span>${escapeHtml(shipment.name||"—")}</span><strong>Status</strong><span>${escapeHtml(shipment.status||"—")}</span><strong>Scanned</strong><span>${escapeHtml(formatDateTime(data.created_at))}</span></div>`;
+}
+function renderSearchError(message){ searchResultCard.className="search-result-card not-found"; searchResultCard.innerHTML=`<div class="search-result-title">✕ ${escapeHtml(message)}</div>`; }
+searchImeiBtn.addEventListener("click",searchImei);
+searchImeiInput.addEventListener("keydown",event=>{ if(event.key==="Enter"){ event.preventDefault(); searchImei(); } });
 
-exportDubaiCsvBtn.addEventListener(
-    "click",
-    () => {
-
-        /*
-        First row is exactly:
-        IMEI
-        */
-
-        const rows = [
-            ["IMEI"],
-            ...dubaiScans.map(
-                scan => [scan.imei]
-            )
-        ];
-
-        const csv =
-            rows
-            .map(row =>
-                row
-                .map(value =>
-                    `"${String(value)
-                    .replace(/"/g,'""')}"`
-                )
-                .join(",")
-            )
-            .join("\n");
-
-        downloadTextFile(
-            csv,
-            "dubai_imei_scans.csv",
-            "text/csv;charset=utf-8;"
-        );
-    }
-);
-
-
-/* DUBAI EXPORT XLSX */
-
-exportDubaiXlsxBtn.addEventListener(
-    "click",
-    () => {
-
-        const worksheet =
-            XLSX.utils.aoa_to_sheet([
-                ["IMEI"],
-                ...dubaiScans.map(
-                    scan => [scan.imei]
-                )
-            ]);
-
-        const workbook =
-            XLSX.utils.book_new();
-
-        XLSX.utils.book_append_sheet(
-            workbook,
-            worksheet,
-            "IMEI"
-        );
-
-        XLSX.writeFile(
-            workbook,
-            "dubai_imei_scans.xlsx"
-        );
-    }
-);
-
-
-/* =====================================================
-   DOWNLOAD HELPER
-===================================================== */
-
-function downloadTextFile(
-    text,
-    filename,
-    type
-){
-
-    const blob =
-        new Blob(
-            [text],
-            {type}
-        );
-
-    const url =
-        URL.createObjectURL(blob);
-
-    const anchor =
-        document.createElement("a");
-
-    anchor.href = url;
-    anchor.download = filename;
-
-    document.body.appendChild(anchor);
-
-    anchor.click();
-
-    anchor.remove();
-
-    URL.revokeObjectURL(url);
+/* DASHBOARD */
+const dashShipmentName=document.getElementById("dashShipmentName");
+const dashShipmentCount=document.getElementById("dashShipmentCount");
+const dashTodayCount=document.getElementById("dashTodayCount");
+const dashShipmentStatus=document.getElementById("dashShipmentStatus");
+const dashShipmentMeta=document.getElementById("dashShipmentMeta");
+const recentShipmentsBody=document.getElementById("recentShipmentsBody");
+const recentShipmentsEmpty=document.getElementById("recentShipmentsEmpty");
+async function refreshDashboard(){
+    if(!db){ dashShipmentName.textContent="Supabase Not Connected"; dashShipmentCount.textContent="0"; dashTodayCount.textContent="0"; setDashboardStatus("Not Connected","error"); return; }
+    const {data:openShipment}=await db.from("shipments").select("*").eq("status","open").order("created_at",{ascending:false}).limit(1).maybeSingle();
+    if(openShipment){
+        const {count}=await db.from("dubai_scans").select("*",{count:"exact",head:true}).eq("shipment_id",openShipment.id);
+        dashShipmentName.textContent=openShipment.name; dashShipmentCount.textContent=count||0; dashShipmentMeta.textContent=`Started ${formatDateTime(openShipment.created_at)}`; setDashboardStatus("Open","connected");
+    }else{ dashShipmentName.textContent="No Open Shipment"; dashShipmentCount.textContent="0"; dashShipmentMeta.textContent="Start a new shipment from Dubai Scan."; setDashboardStatus("Closed","closed"); }
+    const startOfDay=new Date(); startOfDay.setHours(0,0,0,0);
+    const {count:todayCount}=await db.from("dubai_scans").select("*",{count:"exact",head:true}).gte("created_at",startOfDay.toISOString());
+    dashTodayCount.textContent=todayCount||0; await loadRecentShipments();
+}
+function setDashboardStatus(text,type){ dashShipmentStatus.className="live-status"; dashShipmentStatus.innerHTML='<span class="live-dot"></span>'+text; if(type==="connected") dashShipmentStatus.classList.add("connected"); if(type==="closed") dashShipmentStatus.classList.add("closed"); if(type==="error") dashShipmentStatus.classList.add("error"); }
+async function loadRecentShipments(){
+    const {data,error}=await db.from("shipments").select('id,name,status,created_at,closed_at,dubai_scans(count)').order("created_at",{ascending:false}).limit(5);
+    if(error){ console.error(error); return; }
+    const shipments=data||[]; recentShipmentsBody.innerHTML=""; recentShipmentsEmpty.style.display=shipments.length?"none":"block";
+    shipments.forEach(shipment=>{ const row=document.createElement("tr"); const count=Array.isArray(shipment.dubai_scans)&&shipment.dubai_scans.length?shipment.dubai_scans[0].count:0; row.innerHTML=`<td>${escapeHtml(shipment.name)}</td><td>${escapeHtml(shipment.status)}</td><td>${count||0}</td><td>${escapeHtml(formatDateTime(shipment.created_at))}</td>`; recentShipmentsBody.appendChild(row); });
 }
 
+/* DOWNLOAD HELPER */
+function downloadTextFile(text,filename,type){ const blob=new Blob([text],{type}); const url=URL.createObjectURL(blob); const anchor=document.createElement("a"); anchor.href=url; anchor.download=filename; document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url); }
 
-/* =====================================================
-   START
-===================================================== */
-
+/* START */
 loadMatchData();
-
 renderMatchPage();
-
-matchScanInput.focus();
+if(db){ initializeDubai(); refreshDashboard(); } else { refreshDashboard(); }
