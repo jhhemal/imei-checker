@@ -107,6 +107,28 @@ navItems.forEach(item => {
 
 });
 
+document.querySelectorAll(".page-link").forEach(button => {
+    button.addEventListener("click", () => showPage(button.dataset.targetPage));
+});
+
+const themeToggle = document.getElementById("themeToggle");
+const savedTheme = localStorage.getItem("imei-theme");
+const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+
+function applyTheme(theme){
+    const dark = theme === "dark";
+    document.body.classList.toggle("dark-theme", dark);
+    themeToggle.textContent = dark ? "☀" : "☾";
+    themeToggle.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+}
+
+applyTheme(savedTheme || (prefersDark ? "dark" : "light"));
+themeToggle.addEventListener("click", () => {
+    const theme = document.body.classList.contains("dark-theme") ? "light" : "dark";
+    localStorage.setItem("imei-theme", theme);
+    applyTheme(theme);
+});
+
 
 function showPage(pageId){
 
@@ -1180,6 +1202,18 @@ const exportDubaiXlsxBtn=document.getElementById("exportDubaiXlsxBtn");
 const undoDubaiBtn=document.getElementById("undoDubaiBtn");
 const closeShipmentBtn=document.getElementById("closeShipmentBtn");
 const newShipmentBtn=document.getElementById("newShipmentBtn");
+const dubaiFilterInput=document.getElementById("dubaiFilterInput");
+const dubaiVisibleCount=document.getElementById("dubaiVisibleCount");
+const globalConnection=document.getElementById("globalConnection");
+
+function updateGlobalConnection(text,state){
+    globalConnection.className=`connection-pill ${state||""}`;
+    globalConnection.lastElementChild.textContent=text;
+}
+
+updateGlobalConnection(db?(navigator.onLine?"Connected":"Offline"):"Not configured",db&&navigator.onLine?"online":"offline");
+window.addEventListener("online",()=>updateGlobalConnection(db?"Connected":"Not configured",db?"online":"offline"));
+window.addEventListener("offline",()=>updateGlobalConnection("Offline","offline"));
 
 async function initializeDubai(){
     if(!db){ setDubaiStatus("Supabase Not Connected","error"); showDubaiResult("Add your Supabase URL and publishable key in config.js","error"); return; }
@@ -1210,10 +1244,15 @@ async function loadDubaiScans(){
 }
 
 function renderDubaiScans(){
-    dubaiTableBody.innerHTML=""; dubaiTotal.textContent=dubaiScans.length; dubaiLatest.textContent=dubaiScans.length?dubaiScans[0].imei:"—"; dubaiEmpty.style.display=dubaiScans.length?"none":"block";
-    dubaiScans.forEach(scan=>{ const row=document.createElement("tr"); const cell=document.createElement("td"); cell.textContent=scan.imei; row.appendChild(cell); dubaiTableBody.appendChild(row); });
+    const filter=cleanImei(dubaiFilterInput.value);
+    const visibleScans=filter?dubaiScans.filter(scan=>scan.imei.includes(filter)):dubaiScans;
+    dubaiTableBody.innerHTML=""; dubaiTotal.textContent=dubaiScans.length; dubaiLatest.textContent=dubaiScans.length?dubaiScans[0].imei:"—"; dubaiEmpty.textContent=dubaiScans.length?"No IMEIs match this filter.":"No IMEIs scanned yet."; dubaiEmpty.style.display=visibleScans.length?"none":"block";
+    dubaiVisibleCount.textContent=`${visibleScans.length} of ${dubaiScans.length} records`;
+    visibleScans.forEach(scan=>{ const row=document.createElement("tr"); const imeiCell=document.createElement("td"); const timeCell=document.createElement("td"); imeiCell.textContent=scan.imei; timeCell.textContent=formatDateTime(scan.created_at); row.append(imeiCell,timeCell); dubaiTableBody.appendChild(row); });
     undoDubaiBtn.disabled=dubaiScans.length===0||!currentShipment||currentShipment.status!=="open";
 }
+
+dubaiFilterInput.addEventListener("input",renderDubaiScans);
 
 function updateShipmentUI(){
     const isOpen=currentShipment&&currentShipment.status==="open";
@@ -1235,6 +1274,7 @@ function setDubaiStatus(text,type){
     if(type==="connected") dubaiLiveStatus.classList.add("connected");
     if(type==="closed") dubaiLiveStatus.classList.add("closed");
     if(type==="error") dubaiLiveStatus.classList.add("error");
+    updateGlobalConnection(type==="connected"?"Live":type==="error"?"Offline":text,type==="connected"?"online":type==="error"?"offline":"");
 }
 
 async function saveDubaiScan(){
@@ -1246,7 +1286,12 @@ async function saveDubaiScan(){
     const {data,error}=await db.from("dubai_scans").insert({imei,shipment_id:currentShipment.id}).select().single();
     if(error){
         const duplicate=error.code==="23505"||String(error.message).toLowerCase().includes("duplicate");
-        if(duplicate){ showDubaiResult("⚠ IMEI Already Scanned","duplicate"); beep("duplicate"); return; }
+        if(duplicate){
+            const {data:existing}=await db.from("dubai_scans").select("created_at,shipments(name)").eq("imei",imei).maybeSingle();
+            const shipmentName=existing&&existing.shipments?existing.shipments.name:"another shipment";
+            const scannedTime=existing&&existing.created_at?` on ${formatDateTime(existing.created_at)}`:"";
+            showDubaiResult(`⚠ Already scanned in ${shipmentName}${scannedTime}`,"duplicate"); beep("duplicate"); return;
+        }
         console.error(error); showDubaiResult("✕ Unable to Save IMEI","error"); beep("error"); return;
     }
     showDubaiResult("✓ IMEI Saved","success"); beep("success");
@@ -1295,12 +1340,13 @@ copyDubaiBtn.addEventListener("click",async()=>{
     try{ await navigator.clipboard.writeText(text); showDubaiResult("✓ IMEIs Copied","success"); } catch(error){ showDubaiResult("✕ Unable to Copy IMEIs","error"); }
 });
 exportDubaiCsvBtn.addEventListener("click",()=>{
-    const rows=[["IMEI"],...dubaiScans.map(scan=>[scan.imei])];
+    const rows=[["IMEI","Scanned At"],...dubaiScans.map(scan=>[scan.imei,formatDateTime(scan.created_at)])];
     const csv=rows.map(row=>row.map(value=>`"${String(value).replace(/"/g,'""')}"`).join(",")).join("\n");
     downloadTextFile(csv,"dubai_imei_scans.csv","text/csv;charset=utf-8;");
 });
 exportDubaiXlsxBtn.addEventListener("click",()=>{
-    const worksheet=XLSX.utils.aoa_to_sheet([["IMEI"],...dubaiScans.map(scan=>[scan.imei])]);
+    const worksheet=XLSX.utils.aoa_to_sheet([["IMEI","Scanned At"],...dubaiScans.map(scan=>[scan.imei,formatDateTime(scan.created_at)])]);
+    worksheet["!cols"]=[{wch:20},{wch:24}];
     const workbook=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook,worksheet,"IMEI"); XLSX.writeFile(workbook,"dubai_imei_scans.xlsx");
 });
 
