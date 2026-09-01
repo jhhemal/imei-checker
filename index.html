@@ -108,11 +108,12 @@
               class="scan-input"
               type="text"
               inputmode="numeric"
+              maxlength="15"
               autocomplete="off"
               placeholder="Scan IMEI Here"
             />
 
-            <div id="matchResult" class="scan-result"></div>
+            <div id="matchResult" class="scan-result" aria-live="polite"></div>
 
             <div id="matchComplete" class="complete-banner">
               ✓ All IMEIs Verified
@@ -190,6 +191,7 @@
                     class="text-input"
                     type="text"
                     inputmode="numeric"
+                    maxlength="15"
                     placeholder="Enter IMEI number"
                   />
 
@@ -341,8 +343,8 @@
           <div class="scanner-icon">⌁</div>
           <h2>Dubai IMEI Scan</h2>
           <p id="dubaiScannerHelp" class="muted">Scan or enter an IMEI and press Enter</p>
-          <input id="dubaiScanInput" class="scan-input" type="text" inputmode="numeric" autocomplete="off" placeholder="Scan IMEI Here" />
-          <div id="dubaiResult" class="scan-result"></div>
+          <input id="dubaiScanInput" class="scan-input" type="text" inputmode="numeric" maxlength="15" autocomplete="off" placeholder="Scan IMEI Here" />
+          <div id="dubaiResult" class="scan-result" aria-live="polite"></div>
         </section>
 
         <section class="card">
@@ -369,7 +371,7 @@
           <h2>Search IMEI</h2>
           <p class="muted">Check whether an IMEI was scanned and which shipment it belongs to</p>
           <div class="search-row">
-            <input id="searchImeiInput" class="scan-input" type="text" inputmode="numeric" autocomplete="off" placeholder="Enter IMEI" />
+            <input id="searchImeiInput" class="scan-input" type="text" inputmode="numeric" maxlength="15" autocomplete="off" placeholder="Enter IMEI" />
             <button id="searchImeiBtn" class="btn btn-primary search-btn" type="button">Search</button>
           </div>
           <div id="searchResultCard" class="search-result-card hidden"></div>

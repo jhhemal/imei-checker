@@ -155,6 +155,28 @@ function cleanImei(value){
         .replace(/\D/g,"");
 }
 
+function isValidImei(imei){
+    if(!/^\d{15}$/.test(imei)) return false;
+
+    let sum = 0;
+    for(let index = 0; index < imei.length; index++){
+        let digit = Number(imei[index]);
+        if(index % 2 === 1){
+            digit *= 2;
+            if(digit > 9) digit -= 9;
+        }
+        sum += digit;
+    }
+
+    return sum % 10 === 0;
+}
+
+function imeiValidationMessage(imei){
+    if(imei.length !== 15) return "IMEI must contain exactly 15 digits.";
+    if(!isValidImei(imei)) return "IMEI checksum is invalid. Check the number and try again.";
+    return "";
+}
+
 function formatDateTime(value){ return value ? new Date(value).toLocaleString() : "—"; }
 function makeShipmentName(){
     const now=new Date();
@@ -529,6 +551,12 @@ function addSingleMatchImei(){
         return;
     }
 
+    const validationMessage = imeiValidationMessage(imei);
+    if(validationMessage){
+        showManageMessage(validationMessage, false);
+        return;
+    }
+
     if(matchImeis.includes(imei)){
 
         showManageMessage(
@@ -570,13 +598,18 @@ function addBulkMatchImeis(){
     const values =
         raw
         .split(/[\s,\t]+/)
-        .map(cleanImei)
-        .filter(Boolean);
+        .map(cleanImei);
 
     let added = 0;
     let duplicates = 0;
+    let invalid = 0;
 
     values.forEach(imei => {
+
+        if(!isValidImei(imei)){
+            invalid++;
+            return;
+        }
 
         if(matchImeis.includes(imei)){
             duplicates++;
@@ -590,8 +623,8 @@ function addBulkMatchImeis(){
     bulkImeiInput.value = "";
 
     showManageMessage(
-        `${added} IMEI(s) added. ${duplicates} duplicate(s) skipped.`,
-        true
+        `${added} IMEI(s) added. ${duplicates} duplicate(s) and ${invalid} invalid value(s) skipped.`,
+        added > 0
     );
 
     renderMatchPage();
@@ -740,6 +773,14 @@ matchScanInput.addEventListener(
         matchScanInput.focus();
 
         if(!imei){
+            return;
+        }
+
+        const validationMessage = imeiValidationMessage(imei);
+        if(validationMessage){
+            showMatchResult(validationMessage, "error");
+            addMatchHistory(imei || "Invalid entry", "INVALID");
+            beep("error");
             return;
         }
 
@@ -1012,19 +1053,14 @@ async function loadSalesCsv(){
             return;
         }
 
-        const uniqueImeis =
-            [
-                ...new Set(
-                    rows
-                    .map(
-                        row =>
-                            cleanImei(
-                                row[imeiColumn]
-                            )
-                    )
-                    .filter(Boolean)
-                )
-            ];
+        const csvImeis = rows
+            .map(row => cleanImei(row[imeiColumn]));
+        const uniqueImeis = [
+            ...new Set(csvImeis.filter(isValidImei))
+        ];
+        const invalid = csvImeis
+            .filter(imei => imei && !isValidImei(imei))
+            .length;
 
         let added = 0;
         let duplicates = 0;
@@ -1051,8 +1087,8 @@ async function loadSalesCsv(){
         renderMatchPage();
 
         showSalesCsvMessage(
-            `${uniqueImeis.length} IMEI(s) read. ${added} added, ${duplicates} already in the list.`,
-            true
+            `${uniqueImeis.length} valid IMEI(s) read. ${added} added, ${duplicates} already in the list, ${invalid} invalid value(s) skipped.`,
+            added > 0
         );
 
         salesCsvInput.value = "";
@@ -1203,6 +1239,8 @@ function setDubaiStatus(text,type){
 
 async function saveDubaiScan(){
     const imei=cleanImei(dubaiScanInput.value); dubaiScanInput.value=""; dubaiScanInput.focus(); if(!imei) return;
+    const validationMessage=imeiValidationMessage(imei);
+    if(validationMessage){ showDubaiResult(validationMessage,"error"); beep("error"); return; }
     if(!db){ showDubaiResult("Supabase is not connected.","error"); beep("error"); return; }
     if(!currentShipment||currentShipment.status!=="open"){ showDubaiResult("✕ Shipment Is Closed","error"); beep("error"); return; }
     const {data,error}=await db.from("dubai_scans").insert({imei,shipment_id:currentShipment.id}).select().single();
@@ -1272,6 +1310,8 @@ const searchImeiBtn=document.getElementById("searchImeiBtn");
 const searchResultCard=document.getElementById("searchResultCard");
 async function searchImei(){
     const imei=cleanImei(searchImeiInput.value); if(!imei) return;
+    const validationMessage=imeiValidationMessage(imei);
+    if(validationMessage){ renderSearchError(validationMessage); return; }
     if(!db){ renderSearchError("Supabase is not connected."); return; }
     searchResultCard.className="search-result-card"; searchResultCard.innerHTML='<div class="search-result-title">Searching...</div>';
     const {data,error}=await db.from("dubai_scans").select('imei,created_at,shipment_id,shipments(id,name,status,created_at,closed_at)').eq("imei",imei).maybeSingle();
