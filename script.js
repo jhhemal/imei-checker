@@ -1354,10 +1354,41 @@ exportDubaiXlsxBtn.addEventListener("click",()=>{
 const searchImeiInput=document.getElementById("searchImeiInput");
 const searchImeiBtn=document.getElementById("searchImeiBtn");
 const searchResultCard=document.getElementById("searchResultCard");
+const recentSearches=document.getElementById("recentSearches");
+const recentSearchChips=document.getElementById("recentSearchChips");
+const clearRecentSearchesBtn=document.getElementById("clearRecentSearchesBtn");
+const SEARCH_HISTORY_KEY="imei-recent-searches-v1";
+
+function getRecentSearches(){
+    try{return JSON.parse(localStorage.getItem(SEARCH_HISTORY_KEY))||[];}catch(error){return [];}
+}
+
+function renderRecentSearches(){
+    const searches=getRecentSearches();
+    recentSearches.classList.toggle("hidden",searches.length===0);
+    recentSearchChips.innerHTML="";
+    searches.forEach(imei=>{
+        const button=document.createElement("button");
+        button.className="recent-search-chip"; button.type="button"; button.textContent=imei;
+        button.addEventListener("click",()=>{ searchImeiInput.value=imei; searchImei(); });
+        recentSearchChips.appendChild(button);
+    });
+}
+
+function rememberSearch(imei){
+    const searches=[imei,...getRecentSearches().filter(item=>item!==imei)].slice(0,6);
+    localStorage.setItem(SEARCH_HISTORY_KEY,JSON.stringify(searches));
+    renderRecentSearches();
+}
+
+clearRecentSearchesBtn.addEventListener("click",()=>{localStorage.removeItem(SEARCH_HISTORY_KEY);renderRecentSearches();});
+renderRecentSearches();
+
 async function searchImei(){
     const imei=cleanImei(searchImeiInput.value); if(!imei) return;
     const validationMessage=imeiValidationMessage(imei);
     if(validationMessage){ renderSearchError(validationMessage); return; }
+    rememberSearch(imei);
     if(!db){ renderSearchError("Supabase is not connected."); return; }
     searchResultCard.className="search-result-card"; searchResultCard.innerHTML='<div class="search-result-title">Searching...</div>';
     const {data,error}=await db.from("dubai_scans").select('imei,created_at,shipment_id,shipments(id,name,status,created_at,closed_at)').eq("imei",imei).maybeSingle();
@@ -1379,8 +1410,39 @@ const dashShipmentStatus=document.getElementById("dashShipmentStatus");
 const dashShipmentMeta=document.getElementById("dashShipmentMeta");
 const recentShipmentsBody=document.getElementById("recentShipmentsBody");
 const recentShipmentsEmpty=document.getElementById("recentShipmentsEmpty");
+const weeklyChart=document.getElementById("weeklyChart");
+const weeklyTotalBadge=document.getElementById("weeklyTotalBadge");
+
+function localDateKey(date){
+    return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+}
+
+function renderWeeklyActivity(scans){
+    const days=[];
+    for(let offset=6;offset>=0;offset--){
+        const date=new Date(); date.setHours(0,0,0,0); date.setDate(date.getDate()-offset);
+        days.push({date,key:localDateKey(date),count:0});
+    }
+    scans.forEach(scan=>{
+        const day=days.find(item=>item.key===localDateKey(new Date(scan.created_at)));
+        if(day) day.count++;
+    });
+    const maximum=Math.max(1,...days.map(day=>day.count));
+    const total=days.reduce((sum,day)=>sum+day.count,0);
+    weeklyTotalBadge.textContent=`${total} scan${total===1?"":"s"}`;
+    weeklyChart.innerHTML="";
+    days.forEach((day,index)=>{
+        const item=document.createElement("div"); item.className=`chart-day${index===6?" today":""}`;
+        const value=document.createElement("span"); value.className="chart-value"; value.textContent=day.count;
+        const track=document.createElement("div"); track.className="chart-track";
+        const bar=document.createElement("div"); bar.className="chart-bar"; bar.style.height=`${Math.max(3,(day.count/maximum)*100)}%`; track.appendChild(bar);
+        const label=document.createElement("span"); label.className="chart-label"; label.textContent=index===6?"Today":day.date.toLocaleDateString(undefined,{weekday:"short"});
+        item.append(value,track,label); weeklyChart.appendChild(item);
+    });
+}
+
 async function refreshDashboard(){
-    if(!db){ dashShipmentName.textContent="Supabase Not Connected"; dashShipmentCount.textContent="0"; dashTodayCount.textContent="0"; setDashboardStatus("Not Connected","error"); return; }
+    if(!db){ dashShipmentName.textContent="Supabase Not Connected"; dashShipmentCount.textContent="0"; dashTodayCount.textContent="0"; renderWeeklyActivity([]); setDashboardStatus("Not Connected","error"); return; }
     const {data:openShipment}=await db.from("shipments").select("*").eq("status","open").order("created_at",{ascending:false}).limit(1).maybeSingle();
     if(openShipment){
         const {count}=await db.from("dubai_scans").select("*",{count:"exact",head:true}).eq("shipment_id",openShipment.id);
@@ -1388,7 +1450,12 @@ async function refreshDashboard(){
     }else{ dashShipmentName.textContent="No Open Shipment"; dashShipmentCount.textContent="0"; dashShipmentMeta.textContent="Start a new shipment from Dubai Scan."; setDashboardStatus("Closed","closed"); }
     const startOfDay=new Date(); startOfDay.setHours(0,0,0,0);
     const {count:todayCount}=await db.from("dubai_scans").select("*",{count:"exact",head:true}).gte("created_at",startOfDay.toISOString());
-    dashTodayCount.textContent=todayCount||0; await loadRecentShipments();
+    dashTodayCount.textContent=todayCount||0;
+    const weekStart=new Date(); weekStart.setHours(0,0,0,0); weekStart.setDate(weekStart.getDate()-6);
+    const {data:weeklyScans,error:weeklyError}=await db.from("dubai_scans").select("created_at").gte("created_at",weekStart.toISOString());
+    if(weeklyError) console.error(weeklyError);
+    renderWeeklyActivity(weeklyScans||[]);
+    await loadRecentShipments();
 }
 function setDashboardStatus(text,type){ dashShipmentStatus.className="live-status"; dashShipmentStatus.innerHTML='<span class="live-dot"></span>'+text; if(type==="connected") dashShipmentStatus.classList.add("connected"); if(type==="closed") dashShipmentStatus.classList.add("closed"); if(type==="error") dashShipmentStatus.classList.add("error"); }
 async function loadRecentShipments(){
@@ -1400,6 +1467,27 @@ async function loadRecentShipments(){
 
 /* DOWNLOAD HELPER */
 function downloadTextFile(text,filename,type){ const blob=new Blob([text],{type}); const url=URL.createObjectURL(blob); const anchor=document.createElement("a"); anchor.href=url; anchor.download=filename; document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url); }
+
+/* KEYBOARD PRODUCTIVITY */
+document.addEventListener("keydown",event=>{
+    const target=event.target;
+    const typing=target instanceof HTMLInputElement||target instanceof HTMLTextAreaElement||target.isContentEditable;
+
+    if(event.key==="/"&&!typing){
+        let activeInput=document.querySelector(".page.active .scan-input:not(:disabled)");
+        if(!activeInput&&document.getElementById("dashboardPage").classList.contains("active")){
+            showPage("dubaiPage");
+            activeInput=dubaiScanInput;
+        }
+        if(activeInput){event.preventDefault();activeInput.focus();activeInput.select();}
+    }
+
+    if(event.key==="Escape"&&typing){
+        target.value="";
+        if(target===dubaiFilterInput) renderDubaiScans();
+        target.blur();
+    }
+});
 
 /* START */
 loadMatchData();

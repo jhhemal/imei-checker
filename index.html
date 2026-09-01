@@ -65,6 +65,20 @@
           <article class="stat-card"><span class="stat-label">Current Shipment Scans</span><strong id="dashShipmentCount" class="stat-value stat-blue">0</strong></article>
           <article class="stat-card"><span class="stat-label">Scanned Today</span><strong id="dashTodayCount" class="stat-value stat-green">0</strong></article>
         </div>
+        <div class="dashboard-grid">
+          <section class="card activity-card">
+            <div class="section-head"><div><h2>7-Day Activity</h2><p class="muted">Daily scans across all shipments</p></div><span id="weeklyTotalBadge" class="badge">0 scans</span></div>
+            <div id="weeklyChart" class="weekly-chart" aria-label="Scans during the last seven days"></div>
+          </section>
+          <section class="card shortcuts-card">
+            <div class="section-head"><div><h2>Quick Guide</h2><p class="muted">Move faster with keyboard controls</p></div></div>
+            <div class="shortcut-list">
+              <div><span class="shortcut-icon">↵</span><p><strong>Submit a scan</strong><small>Press Enter after an IMEI</small></p><kbd>Enter</kbd></div>
+              <div><span class="shortcut-icon">/</span><p><strong>Focus scanner</strong><small>Jump to the current page input</small></p><kbd>/</kbd></div>
+              <div><span class="shortcut-icon">×</span><p><strong>Clear input</strong><small>Reset the active field</small></p><kbd>Esc</kbd></div>
+            </div>
+          </section>
+        </div>
         <section class="card">
           <div class="section-head"><div><div class="title-with-status"><h2>Current Dubai Shipment</h2><span id="dashShipmentStatus" class="live-status"><span class="live-dot"></span>Loading</span></div><p id="dashShipmentMeta" class="muted">Loading shipment...</p></div></div>
         </section>
@@ -396,6 +410,10 @@
             <button id="searchImeiBtn" class="btn btn-primary search-btn" type="button">Search</button>
           </div>
           <div id="searchResultCard" class="search-result-card hidden"></div>
+          <div id="recentSearches" class="recent-searches hidden">
+            <div class="recent-searches-head"><strong>Recent searches</strong><button id="clearRecentSearchesBtn" type="button">Clear</button></div>
+            <div id="recentSearchChips" class="recent-search-chips"></div>
+          </div>
         </section>
       </section>
 
