@@ -1217,7 +1217,7 @@ window.addEventListener("offline",()=>updateGlobalConnection("Offline","offline"
 
 async function initializeDubai(){
     if(!db){ setDubaiStatus("Supabase Not Connected","error"); showDubaiResult("Add your Supabase URL and publishable key in config.js","error"); return; }
-    if(!dubaiReady){ dubaiReady=true; await loadCurrentShipment(true); subscribeDubaiRealtime(); subscribeShipmentRealtime(); }
+    if(!dubaiReady){ dubaiReady=true; await loadCurrentShipment(false); subscribeDubaiRealtime(); subscribeShipmentRealtime(); }
     else await loadCurrentShipment(false);
 }
 
@@ -1260,8 +1260,18 @@ function updateShipmentUI(){
     dubaiScanInput.disabled=!isOpen;
     closeShipmentBtn.classList.toggle("hidden",!isOpen);
     newShipmentBtn.classList.toggle("hidden",isOpen);
-    if(isOpen){ dubaiScannerHelp.textContent="Scan or enter an IMEI and press Enter"; setDubaiStatus("Live","connected"); }
-    else{ dubaiScannerHelp.textContent="This shipment is closed. Start a new shipment to scan."; setDubaiStatus("Shipment Closed","closed"); }
+    if(isOpen){
+        dubaiScannerHelp.textContent="Scan or enter an IMEI and press Enter";
+        setDubaiStatus("Live","connected");
+    }
+    else if(currentShipment){
+        dubaiScannerHelp.textContent="This shipment is closed. Start a new shipment to scan.";
+        setDubaiStatus("Shipment Closed","closed");
+    }
+    else{
+        dubaiScannerHelp.textContent="No shipment is open. Use Start New Shipment when you are ready.";
+        setDubaiStatus("No Open Shipment","closed");
+    }
     renderDubaiScans();
 }
 
