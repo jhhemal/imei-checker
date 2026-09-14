@@ -349,6 +349,44 @@ const uploadSalesCsvBtn =
 const salesCsvMessage =
     document.getElementById("salesCsvMessage");
 
+const salesCsvFileStatus =
+    document.getElementById("salesCsvFileStatus");
+
+
+function updateSalesCsvSelection(){
+
+    const file =
+        salesCsvInput.files[0];
+
+    if(!file){
+        salesCsvFileStatus.textContent =
+            "No CSV file selected.";
+        uploadSalesCsvBtn.disabled =
+            true;
+        return;
+    }
+
+    const isCsv =
+        file.name.toLowerCase().endsWith(".csv") ||
+        file.type === "text/csv";
+
+    if(!isCsv){
+        salesCsvFileStatus.textContent =
+            "Please choose a CSV file.";
+        uploadSalesCsvBtn.disabled =
+            true;
+        return;
+    }
+
+    const sizeInKb =
+        Math.max(1, Math.round(file.size / 1024));
+
+    salesCsvFileStatus.textContent =
+        `${file.name} selected (${sizeInKb} KB).`;
+    uploadSalesCsvBtn.disabled =
+        false;
+}
+
 
 function loadMatchData(){
 
@@ -1114,6 +1152,7 @@ async function loadSalesCsv(){
         );
 
         salesCsvInput.value = "";
+        updateSalesCsvSelection();
         matchScanInput.focus();
 
     }catch(error){
@@ -1131,6 +1170,11 @@ async function loadSalesCsv(){
 uploadSalesCsvBtn.addEventListener(
     "click",
     loadSalesCsv
+);
+
+salesCsvInput.addEventListener(
+    "change",
+    updateSalesCsvSelection
 );
 
 

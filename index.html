@@ -178,16 +178,22 @@
                     class="file-input"
                     type="file"
                     accept=".csv,text/csv"
+                    aria-describedby="salesCsvFileStatus"
                   />
 
                   <button
                     id="uploadSalesCsvBtn"
                     class="btn btn-primary"
                     type="button"
+                    disabled
                   >
                     Load Sales CSV
                   </button>
                 </div>
+
+                <p id="salesCsvFileStatus" class="file-status" aria-live="polite">
+                  No CSV file selected.
+                </p>
               </div>
 
               <div id="salesCsvMessage" class="inline-message"></div>
