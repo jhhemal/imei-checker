@@ -1231,6 +1231,14 @@ button{
   border:1px solid #dbeafe;
   border-radius:12px;
   background:#f8fbff;
+  transition:border-color .18s ease, background .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+
+.csv-import-box.drop-active{
+  border-color:#2563eb;
+  background:#edf5ff;
+  box-shadow:0 0 0 4px rgba(37,99,235,.08);
+  transform:translateY(-1px);
 }
 
 .csv-import-box strong{

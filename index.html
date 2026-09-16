@@ -166,10 +166,10 @@
 
             <div class="card-body">
 
-              <div class="csv-import-box">
+              <div class="csv-import-box" id="salesCsvDropZone">
                 <div>
                   <strong>Check IMEIs From Sales CSV</strong>
-                  <p class="muted">Upload a sales CSV containing an IMEI column.</p>
+                  <p class="muted">Upload a sales CSV containing an IMEI column or drag and drop one here.</p>
                 </div>
 
                 <div class="button-row csv-import-actions">
@@ -180,6 +180,22 @@
                     accept=".csv,text/csv"
                     aria-describedby="salesCsvFileStatus"
                   />
+
+                  <button
+                    id="downloadSalesCsvTemplateBtn"
+                    class="btn btn-light"
+                    type="button"
+                  >
+                    Download Sample CSV
+                  </button>
+
+                  <button
+                    id="clearSalesCsvBtn"
+                    class="btn btn-light"
+                    type="button"
+                  >
+                    Clear
+                  </button>
 
                   <button
                     id="uploadSalesCsvBtn"

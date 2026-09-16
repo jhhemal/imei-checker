@@ -343,8 +343,17 @@ const clearMatchHistoryBtn =
 const salesCsvInput =
     document.getElementById("salesCsvInput");
 
+const salesCsvDropZone =
+    document.getElementById("salesCsvDropZone");
+
 const uploadSalesCsvBtn =
     document.getElementById("uploadSalesCsvBtn");
+
+const downloadSalesCsvTemplateBtn =
+    document.getElementById("downloadSalesCsvTemplateBtn");
+
+const clearSalesCsvBtn =
+    document.getElementById("clearSalesCsvBtn");
 
 const salesCsvMessage =
     document.getElementById("salesCsvMessage");
@@ -363,6 +372,7 @@ function updateSalesCsvSelection(){
             "No CSV file selected.";
         uploadSalesCsvBtn.disabled =
             true;
+        salesCsvDropZone.classList.remove("drop-active");
         return;
     }
 
@@ -385,6 +395,50 @@ function updateSalesCsvSelection(){
         `${file.name} selected (${sizeInKb} KB).`;
     uploadSalesCsvBtn.disabled =
         false;
+}
+
+function downloadSalesCsvTemplate(){
+
+    const template =
+        "IMEI\n356123456789012\n356123456789013\n356123456789014\n";
+
+    downloadTextFile(
+        template,
+        "imei_sales_template.csv",
+        "text/csv;charset=utf-8;"
+    );
+
+    showSalesCsvMessage(
+        "Sample CSV template downloaded.",
+        true
+    );
+}
+
+function clearSalesCsvSelection(){
+
+    salesCsvInput.value = "";
+    salesCsvFileStatus.textContent =
+        "No CSV file selected.";
+    uploadSalesCsvBtn.disabled =
+        true;
+    salesCsvDropZone.classList.remove("drop-active");
+}
+
+function handleSalesCsvDrop(event){
+
+    event.preventDefault();
+    salesCsvDropZone.classList.remove("drop-active");
+
+    const file =
+        event.dataTransfer?.files?.[0];
+
+    if(!file){
+        return;
+    }
+
+    salesCsvInput.files =
+        event.dataTransfer.files;
+    updateSalesCsvSelection();
 }
 
 
@@ -1172,9 +1226,44 @@ uploadSalesCsvBtn.addEventListener(
     loadSalesCsv
 );
 
+downloadSalesCsvTemplateBtn.addEventListener(
+    "click",
+    downloadSalesCsvTemplate
+);
+
+clearSalesCsvBtn.addEventListener(
+    "click",
+    clearSalesCsvSelection
+);
+
 salesCsvInput.addEventListener(
     "change",
     updateSalesCsvSelection
+);
+
+["dragenter", "dragover"].forEach(eventName => {
+    salesCsvDropZone.addEventListener(
+        eventName,
+        event => {
+            event.preventDefault();
+            salesCsvDropZone.classList.add("drop-active");
+        }
+    );
+});
+
+["dragleave", "drop"].forEach(eventName => {
+    salesCsvDropZone.addEventListener(
+        eventName,
+        event => {
+            event.preventDefault();
+            salesCsvDropZone.classList.remove("drop-active");
+        }
+    );
+});
+
+salesCsvDropZone.addEventListener(
+    "drop",
+    handleSalesCsvDrop
 );
 
 
