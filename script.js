@@ -146,19 +146,61 @@ document.addEventListener("click", event => {
 
 quickMenuItems.forEach(item => {
     item.addEventListener("click", () => {
-        const page = item.dataset.page;
         const action = item.dataset.quickAction;
-
-        if(page){
-            showPage(page);
-        }
 
         if(action === "sampleCsv"){
             if(typeof downloadSalesCsvTemplate === "function") downloadSalesCsvTemplate();
         }
 
-        if(action === "clearCsv"){
-            if(typeof clearSalesCsvSelection === "function") clearSalesCsvSelection();
+        if(action === "loadCsv"){
+            if(typeof salesCsvInput !== "undefined" && salesCsvInput){
+                salesCsvInput.click();
+            }
+        }
+
+        if(action === "clipboardImeis"){
+            showPage("matchPage");
+            if(typeof addImeisFromClipboard === "function") addImeisFromClipboard();
+        }
+
+        if(action === "exportMatchCsv"){
+            showPage("matchPage");
+            if(typeof exportMatchListCsv === "function") exportMatchListCsv();
+        }
+
+        if(action === "exportMatchHistory"){
+            showPage("matchPage");
+            if(typeof exportMatchHistoryCsv === "function") exportMatchHistoryCsv();
+        }
+
+        if(action === "copyDubai"){
+            showPage("dubaiPage");
+            if(typeof copyDubaiScansToClipboard === "function") copyDubaiScansToClipboard();
+        }
+
+        if(action === "newShipment"){
+            showPage("dubaiPage");
+            if(typeof createNewShipment === "function") createNewShipment();
+        }
+
+        if(action === "closeShipment"){
+            showPage("dubaiPage");
+            if(typeof closeCurrentShipment === "function") closeCurrentShipment();
+        }
+
+        if(action === "resetMatches"){
+            showPage("matchPage");
+            if(typeof resetMatchProgress === "function") resetMatchProgress();
+        }
+
+        if(action === "clearMatchList"){
+            showPage("matchPage");
+            if(typeof clearMatchList === "function") clearMatchList();
+        }
+
+        if(action === "clearHistory"){
+            showPage("matchPage");
+            if(typeof clearMatchHistory === "function") clearMatchHistory();
         }
 
         quickActionMenu.classList.remove("open");
@@ -731,25 +773,21 @@ function addSingleMatchImei(){
 }
 
 
-function addBulkMatchImeis(){
+function addImeisFromText(raw, sourceLabel = "IMEIs"){
 
-    const raw =
-        bulkImeiInput.value.trim();
-
-    if(!raw){
-
+    if(!raw || !raw.trim()){
         showManageMessage(
-            "Paste IMEIs first.",
+            sourceLabel === "clipboard" ? "Clipboard is empty." : "Paste IMEIs first.",
             false
         );
-
         return;
     }
 
     const values =
         raw
-        .split(/[\s,\t]+/)
-        .map(cleanImei);
+        .split(/[\s,\t\r\n]+/)
+        .map(cleanImei)
+        .filter(Boolean);
 
     let added = 0;
     let duplicates = 0;
@@ -771,7 +809,12 @@ function addBulkMatchImeis(){
         }
     });
 
-    bulkImeiInput.value = "";
+    if(sourceLabel === "clipboard"){
+        bulkImeiInput.value = "";
+    }
+    else{
+        bulkImeiInput.value = "";
+    }
 
     showManageMessage(
         `${added} IMEI(s) added. ${duplicates} duplicate(s) and ${invalid} invalid value(s) skipped.`,
@@ -779,6 +822,164 @@ function addBulkMatchImeis(){
     );
 
     renderMatchPage();
+}
+
+async function addImeisFromClipboard(){
+
+    if(!navigator.clipboard || !navigator.clipboard.readText){
+        showManageMessage(
+            "Clipboard access is not supported in this browser.",
+            false
+        );
+        return;
+    }
+
+    try{
+        const raw = await navigator.clipboard.readText();
+        addImeisFromText(raw, "clipboard");
+    }
+    catch(error){
+        console.error(error);
+        showManageMessage(
+            "Unable to read clipboard. Copy IMEIs first.",
+            false
+        );
+    }
+}
+
+function addBulkMatchImeis(){
+
+    const raw =
+        bulkImeiInput.value.trim();
+
+    addImeisFromText(raw, "bulk");
+}
+
+function exportMatchListCsv(){
+
+    if(!matchImeis.length){
+        showManageMessage(
+            "There are no IMEIs to export.",
+            false
+        );
+        return;
+    }
+
+    const csv = [
+        ["IMEI","Status"],
+        ...matchImeis.map(imei => [imei, matchFoundSet.has(imei) ? "Verified" : "Pending"])
+    ]
+    .map(row => row.map(value => `"${String(value).replace(/"/g,'""')}"`).join(","))
+    .join("\n");
+
+    downloadTextFile(
+        csv,
+        "imei_verification_list.csv",
+        "text/csv;charset=utf-8;"
+    );
+
+    showManageMessage(
+        "Verification list exported.",
+        true
+    );
+}
+
+function exportMatchHistoryCsv(){
+
+    if(!matchHistoryData.length){
+        showManageMessage(
+            "There is no scan history to export.",
+            false
+        );
+        return;
+    }
+
+    let csv = "IMEI,Result,Time\n";
+
+    matchHistoryData.forEach(scan => {
+        csv += `"${scan.imei}","${scan.type}","${scan.time}"\n`;
+    });
+
+    downloadTextFile(
+        csv,
+        "imei_match_history.csv",
+        "text/csv;charset=utf-8;"
+    );
+
+    showManageMessage(
+        "Match history exported.",
+        true
+    );
+}
+
+function resetMatchProgress(){
+
+    if(!matchFoundSet.size){
+        showManageMessage(
+            "There are no matches to reset.",
+            false
+        );
+        return;
+    }
+
+    if(!confirm("Reset all verified IMEIs?")){
+        return;
+    }
+
+    matchFoundSet.clear();
+    renderMatchPage();
+    showManageMessage(
+        "Verification progress reset.",
+        true
+    );
+}
+
+function clearMatchHistory(){
+
+    if(!matchHistoryData.length){
+        showManageMessage(
+            "The match history is already empty.",
+            false
+        );
+        return;
+    }
+
+    if(!confirm("Clear the match history?")){
+        return;
+    }
+
+    matchHistoryData = [];
+    renderMatchHistory();
+    saveMatchData();
+    showManageMessage(
+        "Match history cleared.",
+        true
+    );
+}
+
+function clearMatchList(){
+
+    if(!matchImeis.length){
+        showManageMessage(
+            "The verification list is already empty.",
+            false
+        );
+        return;
+    }
+
+    if(!confirm("Clear the verification list?")){
+        return;
+    }
+
+    matchImeis = [];
+    matchFoundSet.clear();
+
+    renderMatchPage();
+
+    showManageMessage(
+        "Verification list cleared.",
+        true
+    );
 }
 
 
@@ -1514,11 +1715,13 @@ function subscribeShipmentRealtime(){
     shipmentRealtimeChannel=db.channel("dubai-shipments-live").on("postgres_changes",{event:"*",schema:"public",table:"shipments"},async()=>{ await loadCurrentShipment(false); await refreshDashboard(); }).subscribe();
 }
 
-copyDubaiBtn.addEventListener("click",async()=>{
+async function copyDubaiScansToClipboard(){
     if(!dubaiScans.length){ showDubaiResult("No IMEIs to Copy","error"); return; }
     const text=["IMEI",...dubaiScans.map(scan=>scan.imei)].join("\n");
     try{ await navigator.clipboard.writeText(text); showDubaiResult("✓ IMEIs Copied","success"); } catch(error){ showDubaiResult("✕ Unable to Copy IMEIs","error"); }
-});
+}
+
+copyDubaiBtn.addEventListener("click",copyDubaiScansToClipboard);
 exportDubaiCsvBtn.addEventListener("click",()=>{
     const rows=[["IMEI","Scanned At"],...dubaiScans.map(scan=>[scan.imei,formatDateTime(scan.created_at)])];
     const csv=rows.map(row=>row.map(value=>`"${String(value).replace(/"/g,'""')}"`).join(",")).join("\n");

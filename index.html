@@ -33,17 +33,22 @@
       <div class="header-tools">
         <div class="action-menu-wrap">
           <button id="quickMenuToggle" class="menu-trigger" type="button" aria-expanded="false" aria-controls="quickActionMenu">
-            <span>Quick menu</span>
+            <span>Fast actions</span>
             <span class="menu-caret">▾</span>
           </button>
 
-          <div id="quickActionMenu" class="action-menu" role="menu" aria-label="Quick actions menu">
-            <button class="action-menu-item" data-page="dashboardPage" type="button" role="menuitem">Overview</button>
-            <button class="action-menu-item" data-page="matchPage" type="button" role="menuitem">Verify list</button>
-            <button class="action-menu-item" data-page="dubaiPage" type="button" role="menuitem">Dubai scan</button>
-            <button class="action-menu-item" data-page="searchPage" type="button" role="menuitem">Search IMEI</button>
-            <button class="action-menu-item" data-quick-action="sampleCsv" type="button" role="menuitem">Sample CSV</button>
-            <button class="action-menu-item" data-quick-action="clearCsv" type="button" role="menuitem">Clear CSV</button>
+          <div id="quickActionMenu" class="action-menu" role="menu" aria-label="Operational actions menu">
+            <button class="action-menu-item" data-quick-action="clipboardImeis" type="button" role="menuitem">Paste IMEIs</button>
+            <button class="action-menu-item" data-quick-action="loadCsv" type="button" role="menuitem">Load sales CSV</button>
+            <button class="action-menu-item" data-quick-action="sampleCsv" type="button" role="menuitem">Download sample CSV</button>
+            <button class="action-menu-item" data-quick-action="exportMatchCsv" type="button" role="menuitem">Export verified list</button>
+            <button class="action-menu-item" data-quick-action="exportMatchHistory" type="button" role="menuitem">Export match history</button>
+            <button class="action-menu-item" data-quick-action="copyDubai" type="button" role="menuitem">Copy Dubai scans</button>
+            <button class="action-menu-item" data-quick-action="newShipment" type="button" role="menuitem">Start new shipment</button>
+            <button class="action-menu-item" data-quick-action="closeShipment" type="button" role="menuitem">Close current shipment</button>
+            <button class="action-menu-item" data-quick-action="resetMatches" type="button" role="menuitem">Reset match progress</button>
+            <button class="action-menu-item" data-quick-action="clearMatchList" type="button" role="menuitem">Clear verification list</button>
+            <button class="action-menu-item" data-quick-action="clearHistory" type="button" role="menuitem">Clear match history</button>
           </div>
         </div>
 
