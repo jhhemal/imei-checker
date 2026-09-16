@@ -169,6 +169,11 @@ quickMenuItems.forEach(item => {
             showManageMessage(statusParts.join(" • "), true);
         }
 
+        if(action === "search"){
+            showPage("searchPage");
+            searchImeiInput.focus();
+        }
+
         if(action === "note"){
             const note = window.prompt("Add a quick note:");
             if(!note || !note.trim()){
@@ -184,6 +189,38 @@ quickMenuItems.forEach(item => {
             showManageMessage("Quick note saved.", true);
         }
 
+        if(action === "exportNotes"){
+            const notes = JSON.parse(localStorage.getItem("imei-daily-notes") || "[]");
+            if(!notes.length){
+                showManageMessage("There are no notes to export.", false);
+                return;
+            }
+
+            const csv = [
+                ["Date", "Note"],
+                ...notes.map(item => [new Date(item.createdAt).toLocaleString(), item.text])
+            ]
+            .map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(","))
+            .join("\n");
+
+            downloadTextFile(csv, "imei_daily_notes.csv", "text/csv;charset=utf-8;");
+            showManageMessage("Notes exported.", true);
+        }
+
+        if(action === "clearNotes"){
+            if(!localStorage.getItem("imei-daily-notes")){
+                showManageMessage("There are no saved notes.", false);
+                return;
+            }
+
+            if(!confirm("Clear all saved quick notes?")){
+                return;
+            }
+
+            localStorage.removeItem("imei-daily-notes");
+            showManageMessage("Notes cleared.", true);
+        }
+
         if(action === "copySummary"){
             const summary = [
                 `Date: ${new Date().toLocaleString()}`,
@@ -195,6 +232,20 @@ quickMenuItems.forEach(item => {
 
             navigator.clipboard.writeText(summary)
                 .then(() => showManageMessage("Summary copied to clipboard.", true))
+                .catch(() => showManageMessage("Clipboard access failed.", false));
+        }
+
+        if(action === "copyShipmentSummary"){
+            const shipmentName = currentShipment ? currentShipment.name : "No open shipment";
+            const summary = [
+                `Shipment: ${shipmentName}`,
+                `Status: ${currentShipment ? currentShipment.status : "closed"}`,
+                `Dubai scans: ${dubaiScans ? dubaiScans.length : 0}`,
+                `Updated: ${new Date().toLocaleString()}`
+            ].join("\n");
+
+            navigator.clipboard.writeText(summary)
+                .then(() => showManageMessage("Shipment summary copied.", true))
                 .catch(() => showManageMessage("Clipboard access failed.", false));
         }
 
