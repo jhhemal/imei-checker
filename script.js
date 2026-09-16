@@ -169,6 +169,52 @@ quickMenuItems.forEach(item => {
             showManageMessage(statusParts.join(" • "), true);
         }
 
+        if(action === "note"){
+            const note = window.prompt("Add a quick note:");
+            if(!note || !note.trim()){
+                return;
+            }
+
+            const notes = JSON.parse(localStorage.getItem("imei-daily-notes") || "[]");
+            notes.unshift({
+                text: note.trim(),
+                createdAt: new Date().toISOString()
+            });
+            localStorage.setItem("imei-daily-notes", JSON.stringify(notes.slice(0, 10)));
+            showManageMessage("Quick note saved.", true);
+        }
+
+        if(action === "copySummary"){
+            const summary = [
+                `Date: ${new Date().toLocaleString()}`,
+                `Match list: ${matchImeis.length} IMEIs`,
+                `Verified: ${matchFoundSet.size}`,
+                `Dubai scans: ${dubaiScans ? dubaiScans.length : 0}`,
+                `Supabase: ${db ? "connected" : "not configured"}`
+            ].join("\n");
+
+            navigator.clipboard.writeText(summary)
+                .then(() => showManageMessage("Summary copied to clipboard.", true))
+                .catch(() => showManageMessage("Clipboard access failed.", false));
+        }
+
+        if(action === "resetLocal"){
+            if(!confirm("Reset local app data, including match list and saved notes?")){
+                return;
+            }
+
+            localStorage.removeItem("imei-daily-notes");
+            localStorage.removeItem("imei-recent-searches-v1");
+            localStorage.removeItem(MATCH_STORAGE.imeis);
+            localStorage.removeItem(MATCH_STORAGE.found);
+            localStorage.removeItem(MATCH_STORAGE.history);
+            matchImeis = [];
+            matchFoundSet.clear();
+            matchHistoryData = [];
+            renderMatchPage();
+            showManageMessage("Local data reset.", true);
+        }
+
         if(action === "sampleCsv"){
             if(typeof downloadSalesCsvTemplate === "function") downloadSalesCsvTemplate();
         }
