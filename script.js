@@ -148,6 +148,27 @@ quickMenuItems.forEach(item => {
     item.addEventListener("click", () => {
         const action = item.dataset.quickAction;
 
+        if(action === "refresh"){
+            if(typeof refreshDashboard === "function") refreshDashboard();
+            if(typeof renderMatchPage === "function") renderMatchPage();
+            if(typeof renderDubaiScans === "function") renderDubaiScans();
+            showManageMessage("Dashboard refreshed.", true);
+        }
+
+        if(action === "theme"){
+            themeToggle.click();
+        }
+
+        if(action === "status"){
+            showPage("dashboardPage");
+            const statusParts = [
+                `Supabase: ${db ? "connected" : "not configured"}`,
+                `Match list: ${matchImeis.length} IMEIs`,
+                `Dubai scans: ${dubaiScans ? dubaiScans.length : 0}`
+            ];
+            showManageMessage(statusParts.join(" • "), true);
+        }
+
         if(action === "sampleCsv"){
             if(typeof downloadSalesCsvTemplate === "function") downloadSalesCsvTemplate();
         }
@@ -191,11 +212,6 @@ quickMenuItems.forEach(item => {
         if(action === "resetMatches"){
             showPage("matchPage");
             if(typeof resetMatchProgress === "function") resetMatchProgress();
-        }
-
-        if(action === "clearMatchList"){
-            showPage("matchPage");
-            if(typeof clearMatchList === "function") clearMatchList();
         }
 
         if(action === "clearHistory"){
