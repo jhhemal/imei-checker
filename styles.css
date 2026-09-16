@@ -40,6 +40,14 @@ body{
 .content,.page-heading{width:min(1280px,94%)}
 .app-header{border-bottom:1px solid rgba(255,255,255,.08)}
 .header-tools{display:flex;align-items:center;gap:9px;flex-shrink:0}
+.action-menu-wrap{position:relative}
+.menu-trigger{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:rgba(255,255,255,.07);color:white;font:inherit;font-size:12px;font-weight:800;cursor:pointer;transition:background .18s ease, transform .18s ease}
+.menu-trigger:hover{background:rgba(255,255,255,.14);transform:translateY(-1px)}
+.menu-caret{font-size:11px;opacity:.8}
+.action-menu{position:absolute;top:calc(100% + 10px);right:0;display:grid;gap:6px;min-width:170px;padding:8px;border:1px solid rgba(148,163,184,.2);border-radius:14px;background:rgba(15,23,42,.96);box-shadow:0 12px 30px rgba(15,23,42,.28);opacity:0;visibility:hidden;transform:translateY(-4px);transition:opacity .18s ease, transform .18s ease, visibility .18s ease}
+.action-menu.open{opacity:1;visibility:visible;transform:translateY(0)}
+.action-menu-item{padding:9px 10px;border:0;border-radius:8px;background:transparent;color:#e2e8f0;font:inherit;font-size:12px;font-weight:700;text-align:left;cursor:pointer;transition:background .15s ease, color .15s ease}
+.action-menu-item:hover{background:rgba(59,130,246,.12);color:white}
 .connection-pill{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border:1px solid rgba(255,255,255,.1);border-radius:999px;background:rgba(255,255,255,.06);color:#cbd5e1;font-size:10px;font-weight:800}
 .connection-dot{width:7px;height:7px;border-radius:50%;background:#f59e0b;box-shadow:0 0 0 4px rgba(245,158,11,.1)}
 .connection-pill.online .connection-dot{background:#22c55e;box-shadow:0 0 0 4px rgba(34,197,94,.12)}

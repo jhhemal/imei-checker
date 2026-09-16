@@ -23,7 +23,7 @@
         </div>
       </div>
 
-      <nav class="header-nav">
+      <nav class="header-nav" aria-label="Main menu">
         <button class="nav-item active" data-page="dashboardPage" type="button"><span class="nav-icon">◫</span><span>Dashboard</span></button>
         <button class="nav-item" data-page="matchPage" type="button"><span class="nav-icon">⌕</span><span>IMEI Match</span></button>
         <button class="nav-item" data-page="dubaiPage" type="button"><span class="nav-icon">↗</span><span>Dubai Scan</span></button>
@@ -31,6 +31,22 @@
       </nav>
 
       <div class="header-tools">
+        <div class="action-menu-wrap">
+          <button id="quickMenuToggle" class="menu-trigger" type="button" aria-expanded="false" aria-controls="quickActionMenu">
+            <span>Quick menu</span>
+            <span class="menu-caret">▾</span>
+          </button>
+
+          <div id="quickActionMenu" class="action-menu" role="menu" aria-label="Quick actions menu">
+            <button class="action-menu-item" data-page="dashboardPage" type="button" role="menuitem">Overview</button>
+            <button class="action-menu-item" data-page="matchPage" type="button" role="menuitem">Verify list</button>
+            <button class="action-menu-item" data-page="dubaiPage" type="button" role="menuitem">Dubai scan</button>
+            <button class="action-menu-item" data-page="searchPage" type="button" role="menuitem">Search IMEI</button>
+            <button class="action-menu-item" data-quick-action="sampleCsv" type="button" role="menuitem">Sample CSV</button>
+            <button class="action-menu-item" data-quick-action="clearCsv" type="button" role="menuitem">Clear CSV</button>
+          </div>
+        </div>
+
         <span id="globalConnection" class="connection-pill"><span class="connection-dot"></span><span>Checking</span></span>
         <button id="themeToggle" class="icon-btn" type="button" aria-label="Switch to dark mode" title="Switch theme">☾</button>
       </div>

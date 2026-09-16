@@ -112,6 +112,9 @@ document.querySelectorAll(".page-link").forEach(button => {
 });
 
 const themeToggle = document.getElementById("themeToggle");
+const quickMenuToggle = document.getElementById("quickMenuToggle");
+const quickActionMenu = document.getElementById("quickActionMenu");
+const quickMenuItems = document.querySelectorAll(".action-menu-item");
 const savedTheme = localStorage.getItem("imei-theme");
 const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
 
@@ -127,6 +130,40 @@ themeToggle.addEventListener("click", () => {
     const theme = document.body.classList.contains("dark-theme") ? "light" : "dark";
     localStorage.setItem("imei-theme", theme);
     applyTheme(theme);
+});
+
+quickMenuToggle.addEventListener("click", () => {
+    const isOpen = quickActionMenu.classList.toggle("open");
+    quickMenuToggle.setAttribute("aria-expanded", String(isOpen));
+});
+
+document.addEventListener("click", event => {
+    if(!quickActionMenu.contains(event.target) && !quickMenuToggle.contains(event.target)){
+        quickActionMenu.classList.remove("open");
+        quickMenuToggle.setAttribute("aria-expanded", "false");
+    }
+});
+
+quickMenuItems.forEach(item => {
+    item.addEventListener("click", () => {
+        const page = item.dataset.page;
+        const action = item.dataset.quickAction;
+
+        if(page){
+            showPage(page);
+        }
+
+        if(action === "sampleCsv"){
+            if(typeof downloadSalesCsvTemplate === "function") downloadSalesCsvTemplate();
+        }
+
+        if(action === "clearCsv"){
+            if(typeof clearSalesCsvSelection === "function") clearSalesCsvSelection();
+        }
+
+        quickActionMenu.classList.remove("open");
+        quickMenuToggle.setAttribute("aria-expanded", "false");
+    });
 });
 
 
