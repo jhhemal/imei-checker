@@ -196,8 +196,8 @@
 
               <div class="csv-import-box" id="salesCsvDropZone">
                 <div>
-                  <strong>Check IMEIs From Sales CSV</strong>
-                  <p class="muted">Upload a sales CSV containing an IMEI column or drag and drop one here.</p>
+                    <strong>Import IMEIs From Sales File</strong>
+                    <p class="muted">Upload a CSV or Excel workbook. IMEIs are imported from every worksheet and each IMEI keeps its sheet name.</p>
                 </div>
 
                 <div class="button-row csv-import-actions">
@@ -205,7 +205,7 @@
                     id="salesCsvInput"
                     class="file-input"
                     type="file"
-                    accept=".csv,text/csv"
+                    accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                     aria-describedby="salesCsvFileStatus"
                   />
 
@@ -236,7 +236,7 @@
                 </div>
 
                 <p id="salesCsvFileStatus" class="file-status" aria-live="polite">
-                  No CSV file selected.
+                    No sales file selected.
                 </p>
               </div>
 

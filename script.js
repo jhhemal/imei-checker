@@ -208,11 +208,6 @@ quickMenuItems.forEach(item => {
         }
 
         if(action === "clearNotes"){
-            if(!localStorage.getItem("imei-daily-notes")){
-                showManageMessage("There are no saved notes.", false);
-                return;
-            }
-
             if(!confirm("Clear all saved quick notes?")){
                 return;
             }
@@ -259,9 +254,11 @@ quickMenuItems.forEach(item => {
             localStorage.removeItem(MATCH_STORAGE.imeis);
             localStorage.removeItem(MATCH_STORAGE.found);
             localStorage.removeItem(MATCH_STORAGE.history);
+            localStorage.removeItem(MATCH_STORAGE.sources);
             matchImeis = [];
             matchFoundSet.clear();
             matchHistoryData = [];
+            matchImeiSources = {};
             renderMatchPage();
             showManageMessage("Local data reset.", true);
         }
@@ -459,12 +456,14 @@ function beep(type){
 const MATCH_STORAGE = {
     imeis:"imeiWebApp_match_imeis",
     found:"imeiWebApp_match_found",
-    history:"imeiWebApp_match_history"
+    history:"imeiWebApp_match_history",
+    sources:"imeiWebApp_match_sources"
 };
 
 let matchImeis = [];
 let matchFoundSet = new Set();
 let matchHistoryData = [];
+let matchImeiSources = {};
 
 const matchTotal =
     document.getElementById("matchTotal");
@@ -561,20 +560,23 @@ function updateSalesCsvSelection(){
 
     if(!file){
         salesCsvFileStatus.textContent =
-            "No CSV file selected.";
+            "No sales file selected.";
         uploadSalesCsvBtn.disabled =
             true;
         salesCsvDropZone.classList.remove("drop-active");
         return;
     }
 
-    const isCsv =
+    const isSupportedFile =
         file.name.toLowerCase().endsWith(".csv") ||
-        file.type === "text/csv";
+        file.name.toLowerCase().endsWith(".xlsx") ||
+        file.name.toLowerCase().endsWith(".xls") ||
+        file.type === "text/csv" ||
+        file.type.includes("spreadsheet");
 
-    if(!isCsv){
+    if(!isSupportedFile){
         salesCsvFileStatus.textContent =
-            "Please choose a CSV file.";
+            "Please choose a CSV or Excel file.";
         uploadSalesCsvBtn.disabled =
             true;
         return;
@@ -610,7 +612,7 @@ function clearSalesCsvSelection(){
 
     salesCsvInput.value = "";
     salesCsvFileStatus.textContent =
-        "No CSV file selected.";
+        "No sales file selected.";
     uploadSalesCsvBtn.disabled =
         true;
     salesCsvDropZone.classList.remove("drop-active");
@@ -667,6 +669,13 @@ function loadMatchData(){
         matchHistoryData =
             JSON.parse(savedHistory);
     }
+
+    const savedSources =
+        localStorage.getItem(MATCH_STORAGE.sources);
+
+    if(savedSources){
+        matchImeiSources = JSON.parse(savedSources);
+    }
 }
 
 
@@ -687,6 +696,11 @@ function saveMatchData(){
     localStorage.setItem(
         MATCH_STORAGE.history,
         JSON.stringify(matchHistoryData)
+    );
+
+    localStorage.setItem(
+        MATCH_STORAGE.sources,
+        JSON.stringify(matchImeiSources)
     );
 }
 
@@ -1456,7 +1470,7 @@ async function loadSalesCsv(){
     if(!file){
 
         showSalesCsvMessage(
-            "Choose a CSV file first.",
+            "Choose a CSV or Excel file first.",
             false
         );
 
@@ -1474,52 +1488,42 @@ async function loadSalesCsv(){
                 {type:"array"}
             );
 
-        const sheet =
-            workbook.Sheets[
-                workbook.SheetNames[0]
-            ];
+        const importedSources = {};
+        let csvImeis = [];
 
-        const rows =
-            XLSX.utils.sheet_to_json(
-                sheet,
-                {
-                    defval:"",
-                    raw:false
+        workbook.SheetNames.forEach(sheetName => {
+            const sheet = workbook.Sheets[sheetName];
+            const rows = XLSX.utils.sheet_to_json(sheet, {defval:"", raw:false});
+            if(!rows.length) return;
+
+            const imeiColumn = Object.keys(rows[0]).find(key =>
+                String(key).trim().toLowerCase() === "imei"
+            );
+            if(!imeiColumn) return;
+
+            rows.forEach(row => {
+                const imei = cleanImei(row[imeiColumn]);
+                if(!imei) return;
+                csvImeis.push(imei);
+                if(isValidImei(imei)){
+                    if(!importedSources[imei]) importedSources[imei] = [];
+                    if(!importedSources[imei].includes(sheetName)){
+                        importedSources[imei].push(sheetName);
+                    }
                 }
-            );
+            });
+        });
 
-        if(!rows.length){
+        if(!csvImeis.length){
 
             showSalesCsvMessage(
-                "The CSV file is empty.",
+                "No IMEI column or IMEI values were found in the workbook.",
                 false
             );
 
             return;
         }
 
-        const imeiColumn =
-            Object.keys(rows[0])
-            .find(
-                key =>
-                    String(key)
-                    .trim()
-                    .toLowerCase() ===
-                    "imei"
-            );
-
-        if(!imeiColumn){
-
-            showSalesCsvMessage(
-                'Could not find a column named "IMEI".',
-                false
-            );
-
-            return;
-        }
-
-        const csvImeis = rows
-            .map(row => cleanImei(row[imeiColumn]));
         const uniqueImeis = [
             ...new Set(csvImeis.filter(isValidImei))
         ];
@@ -1532,6 +1536,8 @@ async function loadSalesCsv(){
 
         uniqueImeis.forEach(
             imei => {
+
+                matchImeiSources[imei] = importedSources[imei] || [];
 
                 if(
                     matchImeis.includes(
@@ -1552,7 +1558,7 @@ async function loadSalesCsv(){
         renderMatchPage();
 
         showSalesCsvMessage(
-            `${uniqueImeis.length} valid IMEI(s) read. ${added} added, ${duplicates} already in the list, ${invalid} invalid value(s) skipped.`,
+            `${uniqueImeis.length} valid IMEI(s) read from ${workbook.SheetNames.length} sheet(s). ${added} added, ${duplicates} already in the list, ${invalid} invalid value(s) skipped.`,
             added > 0
         );
 
@@ -1565,7 +1571,7 @@ async function loadSalesCsv(){
         console.error(error);
 
         showSalesCsvMessage(
-            "Unable to read this CSV file.",
+            "Unable to read this CSV or Excel file.",
             false
         );
     }
@@ -1885,14 +1891,29 @@ async function searchImei(){
     const validationMessage=imeiValidationMessage(imei);
     if(validationMessage){ renderSearchError(validationMessage); return; }
     rememberSearch(imei);
-    if(!db){ renderSearchError("Supabase is not connected."); return; }
+    const localSheets = matchImeiSources[imei] || [];
+    if(!db && !localSheets.length){ renderSearchError("IMEI was not found in the imported workbook, and Supabase is not connected."); return; }
+    if(!db && localSheets.length){
+        renderLocalSearchResult(imei, localSheets);
+        return;
+    }
     searchResultCard.className="search-result-card"; searchResultCard.innerHTML='<div class="search-result-title">Searching...</div>';
     const {data,error}=await db.from("dubai_scans").select('imei,created_at,shipment_id,shipments(id,name,status,created_at,closed_at)').eq("imei",imei).maybeSingle();
     if(error){ console.error(error); renderSearchError("Unable to search this IMEI."); return; }
-    if(!data){ searchResultCard.className="search-result-card not-found"; searchResultCard.innerHTML=`<div class="search-result-title">✕ IMEI Not Found</div><div class="search-detail"><strong>IMEI</strong><span>${escapeHtml(imei)}</span></div>`; return; }
+    if(!data){
+        if(localSheets.length){
+            renderLocalSearchResult(imei, localSheets);
+            return;
+        }
+        searchResultCard.className="search-result-card not-found"; searchResultCard.innerHTML=`<div class="search-result-title">✕ IMEI Not Found</div><div class="search-detail"><strong>IMEI</strong><span>${escapeHtml(imei)}</span></div>`; return;
+    }
     const shipment=data.shipments||{};
     searchResultCard.className="search-result-card found";
-    searchResultCard.innerHTML=`<div class="search-result-title">✓ IMEI Found</div><div class="search-detail"><strong>IMEI</strong><span>${escapeHtml(data.imei)}</span><strong>Shipment</strong><span>${escapeHtml(shipment.name||"—")}</span><strong>Status</strong><span>${escapeHtml(shipment.status||"—")}</span><strong>Scanned</strong><span>${escapeHtml(formatDateTime(data.created_at))}</span></div>`;
+    searchResultCard.innerHTML=`<div class="search-result-title">✓ IMEI Found</div><div class="search-detail"><strong>IMEI</strong><span>${escapeHtml(data.imei)}</span><strong>Workbook sheet</strong><span>${escapeHtml(localSheets.join(", ")||"Not imported")}</span><strong>Shipment</strong><span>${escapeHtml(shipment.name||"—")}</span><strong>Status</strong><span>${escapeHtml(shipment.status||"—")}</span><strong>Scanned</strong><span>${escapeHtml(formatDateTime(data.created_at))}</span></div>`;
+}
+function renderLocalSearchResult(imei, sheets){
+    searchResultCard.className="search-result-card found";
+    searchResultCard.innerHTML=`<div class="search-result-title">✓ IMEI Found In Workbook</div><div class="search-detail"><strong>IMEI</strong><span>${escapeHtml(imei)}</span><strong>Workbook sheet</strong><span>${escapeHtml(sheets.join(", "))}</span></div>`;
 }
 function renderSearchError(message){ searchResultCard.className="search-result-card not-found"; searchResultCard.innerHTML=`<div class="search-result-title">✕ ${escapeHtml(message)}</div>`; }
 searchImeiBtn.addEventListener("click",searchImei);
