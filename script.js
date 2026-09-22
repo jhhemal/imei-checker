@@ -78,6 +78,7 @@ if(
 
 const pageInfo = {
     dashboardPage:{title:"Dashboard",subtitle:"Dubai shipment scanning overview"},
+    runnerPage:{title:"Runner Scan",subtitle:"Create two-row Excel output from phone scans"},
     matchPage:{title:"IMEI Match",subtitle:"Verify IMEIs against your saved list"},
     dubaiPage:{title:"Dubai Scan",subtitle:"Shared IMEI scanning from multiple computers"},
     searchPage:{title:"Search IMEI",subtitle:"Find a scanned IMEI and its shipment"}
@@ -464,6 +465,88 @@ let matchImeis = [];
 let matchFoundSet = new Set();
 let matchHistoryData = [];
 let matchImeiSources = {};
+
+const runnerScanInput = document.getElementById("runnerScanInput");
+const runnerScanResult = document.getElementById("runnerScanResult");
+const runnerOutput = document.getElementById("runnerOutput");
+const runnerScanCount = document.getElementById("runnerScanCount");
+const runnerRowCount = document.getElementById("runnerRowCount");
+const runnerOutputBadge = document.getElementById("runnerOutputBadge");
+const copyRunnerOutputBtn = document.getElementById("copyRunnerOutputBtn");
+const clearRunnerOutputBtn = document.getElementById("clearRunnerOutputBtn");
+let runnerImeis = JSON.parse(localStorage.getItem("imei-runner-imeis") || "[]");
+
+function renderRunnerOutput(){
+    runnerOutput.value = runnerImeis.flatMap(imei => [imei, imei]).join("\n");
+    runnerScanCount.textContent = runnerImeis.length;
+    runnerRowCount.textContent = runnerImeis.length * 2;
+    runnerOutputBadge.textContent = `${runnerImeis.length * 2} rows`;
+}
+
+function scanRunnerImei(){
+    const imei = cleanImei(runnerScanInput.value);
+    const validationMessage = imeiValidationMessage(imei);
+
+    if(validationMessage){
+        runnerScanResult.className = "scan-result result-error";
+        runnerScanResult.textContent = validationMessage;
+        return;
+    }
+
+    if(runnerImeis.includes(imei)){
+        runnerScanResult.className = "scan-result result-duplicate";
+        runnerScanResult.textContent = "Already scanned in this runner batch.";
+        runnerScanInput.select();
+        return;
+    }
+
+    runnerImeis.push(imei);
+    localStorage.setItem("imei-runner-imeis", JSON.stringify(runnerImeis));
+    renderRunnerOutput();
+    runnerScanResult.className = "scan-result result-success";
+    runnerScanResult.textContent = `Added ${imei}. Two Excel rows ready.`;
+    runnerScanInput.value = "";
+    runnerScanInput.focus();
+}
+
+runnerScanInput.addEventListener("keydown", event => {
+    if(event.key === "Enter"){
+        event.preventDefault();
+        scanRunnerImei();
+    }
+});
+
+copyRunnerOutputBtn.addEventListener("click", async () => {
+    if(!runnerOutput.value){
+        runnerScanResult.className = "scan-result result-error";
+        runnerScanResult.textContent = "Scan at least one phone first.";
+        return;
+    }
+
+    try{
+        await navigator.clipboard.writeText(runnerOutput.value);
+        runnerScanResult.className = "scan-result result-success";
+        runnerScanResult.textContent = "Copied. Paste directly into Excel.";
+    }catch(error){
+        runnerOutput.focus();
+        runnerOutput.select();
+        runnerScanResult.className = "scan-result result-error";
+        runnerScanResult.textContent = "Clipboard access failed. Press Ctrl+C with the output selected.";
+    }
+});
+
+clearRunnerOutputBtn.addEventListener("click", () => {
+    if(!runnerImeis.length) return;
+    if(!confirm("Clear this runner batch?")) return;
+    runnerImeis = [];
+    localStorage.removeItem("imei-runner-imeis");
+    renderRunnerOutput();
+    runnerScanResult.textContent = "Output cleared.";
+    runnerScanResult.className = "scan-result result-success";
+    runnerScanInput.focus();
+});
+
+renderRunnerOutput();
 
 const matchTotal =
     document.getElementById("matchTotal");

@@ -25,6 +25,7 @@
 
       <nav class="header-nav" aria-label="Main menu">
         <button class="nav-item active" data-page="dashboardPage" type="button"><span class="nav-icon">◫</span><span>Dashboard</span></button>
+        <button class="nav-item" data-page="runnerPage" type="button"><span class="nav-icon">▤</span><span>Runner Scan</span></button>
         <button class="nav-item" data-page="matchPage" type="button"><span class="nav-icon">⌕</span><span>IMEI Match</span></button>
         <button class="nav-item" data-page="dubaiPage" type="button"><span class="nav-icon">↗</span><span>Dubai Scan</span></button>
         <button class="nav-item" data-page="searchPage" type="button"><span class="nav-icon">⌕</span><span>Search</span></button>
@@ -113,6 +114,33 @@
         <section class="card">
           <div class="section-head"><div><h2>Recent Shipments</h2><p class="muted">Latest Dubai shipment activity</p></div></div>
           <div class="table-scroll"><table class="data-table"><thead><tr><th>Shipment</th><th>Status</th><th>Scans</th><th>Created</th></tr></thead><tbody id="recentShipmentsBody"></tbody></table><div id="recentShipmentsEmpty" class="empty-state">No shipments yet.</div></div>
+        </section>
+      </section>
+
+      <section id="runnerPage" class="page">
+        <div class="stats-grid">
+          <article class="stat-card"><span class="stat-label">Phones Scanned</span><strong id="runnerScanCount" class="stat-value stat-blue">0</strong></article>
+          <article class="stat-card"><span class="stat-label">Excel Rows Ready</span><strong id="runnerRowCount" class="stat-value stat-green">0</strong></article>
+        </div>
+
+        <section class="card scanner-card">
+          <div class="scanner-icon">⌁</div>
+          <h2>Scan Runner Phones</h2>
+          <p class="muted">Scan an IMEI. Each phone is added as two identical rows for Excel.</p>
+          <input id="runnerScanInput" class="scan-input" type="text" inputmode="numeric" maxlength="15" autocomplete="off" placeholder="Scan IMEI Here" />
+          <div id="runnerScanResult" class="scan-result" aria-live="polite"></div>
+        </section>
+
+        <section class="card">
+          <div class="section-head">
+            <div><h2>Excel Paste Output</h2><p class="muted">Copy this and paste it into the IMEI column in your sheet.</p></div>
+            <span id="runnerOutputBadge" class="badge">0 rows</span>
+          </div>
+          <textarea id="runnerOutput" class="textarea runner-output" readonly placeholder="Scanned IMEIs will appear here, two rows per phone."></textarea>
+          <div class="card-actions">
+            <button id="copyRunnerOutputBtn" class="btn btn-primary" type="button">Copy For Excel</button>
+            <button id="clearRunnerOutputBtn" class="btn btn-light" type="button">Clear Output</button>
+          </div>
         </section>
       </section>
 
