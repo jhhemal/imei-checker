@@ -478,10 +478,26 @@ const runnerOrderMethod = document.getElementById("runnerOrderMethod");
 const runnerPaymentMethod = document.getElementById("runnerPaymentMethod");
 const runnerOrderDate = document.getElementById("runnerOrderDate");
 const runnerPrice = document.getElementById("runnerPrice");
+const runnerPriceList = document.getElementById("runnerPriceList");
+const runnerPriceListStatus = document.getElementById("runnerPriceListStatus");
 const runnerBoxPhoto = document.getElementById("runnerBoxPhoto");
 const runnerOcrResult = document.getElementById("runnerOcrResult");
 let runnerImeis = JSON.parse(localStorage.getItem("imei-runner-imeis") || "[]");
 let runnerRows = JSON.parse(localStorage.getItem("imei-runner-rows") || "[]");
+let runnerPriceCatalog = JSON.parse(localStorage.getItem("imei-runner-price-catalog") || "[]");
+
+function normalizeProduct(value){
+    return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "").replace(/iphone/g, "iphone");
+}
+
+function findRunnerPrice(product){
+    const normalized = normalizeProduct(product);
+    if(!normalized) return null;
+    return runnerPriceCatalog.find(item => {
+        const candidate = normalizeProduct(item.product);
+        return candidate && (normalized.includes(candidate) || candidate.includes(normalized));
+    }) || null;
+}
 
 function runnerFields(){
     return [runnerOrderMethod.value.trim(), runnerPaymentMethod.value.trim(), runnerOrderDate.value, "", runnerPrice.value.trim(), ""];
@@ -575,6 +591,13 @@ function addRunnerBoxRows(text){
     const productMatch = normalized.match(/(iPhone\s+\d{1,2}\s+(?:pro\s+max|pro|max)?\s*[A-Za-z]+\s+\d{2,4}GB)/i);
     const product = productMatch ? productMatch[1].replace(/\s+/g, " ").trim() : "";
     const serial = serialMatch ? serialMatch[1] : "";
+    const catalogItem = findRunnerPrice(product);
+
+    if(catalogItem){
+        runnerPrice.value = catalogItem.price;
+        if(catalogItem.payment) runnerPaymentMethod.value = catalogItem.payment;
+        renderRunnerRows();
+    }
 
     if(!imeis.length){
         runnerOcrResult.className = "scan-result result-error";
@@ -584,15 +607,37 @@ function addRunnerBoxRows(text){
 
     imeis.forEach(imei => {
         if(runnerRows.some(row => row.imei === imei)) return;
-        runnerRows.push({product, serial, imei, price:runnerPrice.value.trim(), total:"", input:""});
+        runnerRows.push({product, serial, imei, price:catalogItem?.price || runnerPrice.value.trim(), total:catalogItem?.total || "", input:""});
         runnerImeis.push(imei);
     });
     localStorage.setItem("imei-runner-imeis", JSON.stringify(runnerImeis));
     localStorage.setItem("imei-runner-rows", JSON.stringify(runnerRows));
     renderRunnerOutput();
     runnerOcrResult.className = "scan-result result-success";
-    runnerOcrResult.textContent = `${imeis.length} IMEI(s) found${serial ? ` and serial ${serial}` : ""}. Review the output before copying.`;
+    runnerOcrResult.textContent = `${imeis.length} IMEI(s) found${serial ? ` and serial ${serial}` : ""}${catalogItem ? ` Price found: ${catalogItem.price}.` : " Price not found in the catalog."} Review the output before copying.`;
 }
+
+runnerPriceList.addEventListener("change", async () => {
+    const file = runnerPriceList.files[0];
+    if(!file) return;
+    try{
+        const workbook = XLSX.read(await file.arrayBuffer(), {type:"array"});
+        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {defval:"", raw:false});
+        if(!rows.length) throw new Error("empty");
+        const productKey = Object.keys(rows[0]).find(key => /^(product|model|item|description)$/i.test(String(key).trim()));
+        const priceKey = Object.keys(rows[0]).find(key => /^(price|unit price|amount)$/i.test(String(key).trim()));
+        const paymentKey = Object.keys(rows[0]).find(key => /^(payment|payment method)$/i.test(String(key).trim()));
+        const totalKey = Object.keys(rows[0]).find(key => /^(total|total amount)$/i.test(String(key).trim()));
+        if(!productKey || !priceKey) throw new Error("columns");
+        runnerPriceCatalog = rows.map(row => ({product:String(row[productKey]).trim(), price:String(row[priceKey]).trim(), payment:paymentKey ? String(row[paymentKey]).trim() : "", total:totalKey ? String(row[totalKey]).trim() : ""})).filter(item => item.product && item.price);
+        localStorage.setItem("imei-runner-price-catalog", JSON.stringify(runnerPriceCatalog));
+        runnerPriceListStatus.textContent = `${runnerPriceCatalog.length} products loaded. Price will be detected after scanning.`;
+        runnerPriceListStatus.className = "file-status message-success";
+    }catch(error){
+        runnerPriceListStatus.textContent = "Could not read price list. Use Product and Price columns.";
+        runnerPriceListStatus.className = "file-status message-error";
+    }
+});
 
 runnerBoxPhoto.addEventListener("change", async () => {
     const file = runnerBoxPhoto.files[0];
