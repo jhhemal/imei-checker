@@ -493,10 +493,14 @@ function normalizeProduct(value){
 function findRunnerPrice(product){
     const normalized = normalizeProduct(product);
     if(!normalized) return null;
-    return runnerPriceCatalog.find(item => {
-        const candidate = normalizeProduct(item.product);
-        return candidate && (normalized.includes(candidate) || candidate.includes(normalized));
-    }) || null;
+    const storageMatch = normalized.match(/(?:256gb|512gb|1t|2t)/);
+    const storage = storageMatch ? storageMatch[0] : "";
+    return runnerPriceCatalog
+        .filter(item => {
+            const candidate = normalizeProduct(item.product);
+            return candidate && normalized.includes(candidate) && (!item.storage || !storage || normalizeProduct(item.storage) === storage);
+        })
+        .sort((first, second) => normalizeProduct(second.product).length - normalizeProduct(first.product).length)[0] || null;
 }
 
 function runnerFields(){
@@ -605,16 +609,16 @@ function addRunnerBoxRows(text){
         return;
     }
 
-    imeis.forEach(imei => {
-        if(runnerRows.some(row => row.imei === imei)) return;
-        runnerRows.push({product, serial, imei, price:catalogItem?.price || runnerPrice.value.trim(), total:catalogItem?.total || "", input:""});
-        runnerImeis.push(imei);
-    });
+    const boxImei = imeis[0];
+    if(boxImei && !runnerRows.some(row => row.imei === boxImei)){
+        runnerRows.push({product, serial, imei:boxImei, price:catalogItem?.price || runnerPrice.value.trim(), total:catalogItem?.total || "", input:""});
+        runnerImeis.push(boxImei);
+    }
     localStorage.setItem("imei-runner-imeis", JSON.stringify(runnerImeis));
     localStorage.setItem("imei-runner-rows", JSON.stringify(runnerRows));
     renderRunnerOutput();
     runnerOcrResult.className = "scan-result result-success";
-    runnerOcrResult.textContent = `${imeis.length} IMEI(s) found${serial ? ` and serial ${serial}` : ""}${catalogItem ? ` Price found: ${catalogItem.price}.` : " Price not found in the catalog."} Review the output before copying.`;
+    runnerOcrResult.textContent = `One phone row added${imeis.length > 1 ? " (IMEI 1 used)" : ""}${serial ? ` with serial ${serial}` : ""}.${catalogItem ? ` Price found: ${catalogItem.price}.` : " Price not found in the catalog."} Scan another box only if this order has a second phone.`;
 }
 
 runnerPriceList.addEventListener("change", async () => {
@@ -624,12 +628,13 @@ runnerPriceList.addEventListener("change", async () => {
         const workbook = XLSX.read(await file.arrayBuffer(), {type:"array"});
         const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {defval:"", raw:false});
         if(!rows.length) throw new Error("empty");
-        const productKey = Object.keys(rows[0]).find(key => /^(product|model|item|description)$/i.test(String(key).trim()));
-        const priceKey = Object.keys(rows[0]).find(key => /^(price|unit price|amount)$/i.test(String(key).trim()));
+        const productKey = Object.keys(rows[0]).find(key => /^(product|model|item|description|phone)$/i.test(String(key).trim()));
+        const storageKey = Object.keys(rows[0]).find(key => /^(gb|storage|capacity)$/i.test(String(key).trim()));
+        const priceKey = Object.keys(rows[0]).find(key => /^(price|unit price|amount|total price)$/i.test(String(key).trim()));
         const paymentKey = Object.keys(rows[0]).find(key => /^(payment|payment method)$/i.test(String(key).trim()));
         const totalKey = Object.keys(rows[0]).find(key => /^(total|total amount)$/i.test(String(key).trim()));
         if(!productKey || !priceKey) throw new Error("columns");
-        runnerPriceCatalog = rows.map(row => ({product:String(row[productKey]).trim(), price:String(row[priceKey]).trim(), payment:paymentKey ? String(row[paymentKey]).trim() : "", total:totalKey ? String(row[totalKey]).trim() : ""})).filter(item => item.product && item.price);
+        runnerPriceCatalog = rows.map(row => ({product:String(row[productKey]).trim(), storage:storageKey ? String(row[storageKey]).trim() : "", price:String(row[priceKey]).trim(), payment:paymentKey ? String(row[paymentKey]).trim() : "", total:totalKey ? String(row[totalKey]).trim() : ""})).filter(item => item.product && item.price);
         localStorage.setItem("imei-runner-price-catalog", JSON.stringify(runnerPriceCatalog));
         runnerPriceListStatus.textContent = `${runnerPriceCatalog.length} products loaded. Price will be detected after scanning.`;
         runnerPriceListStatus.className = "file-status message-success";
