@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 
 <body>
@@ -132,11 +133,27 @@
         </section>
 
         <section class="card">
+          <div class="section-head"><div><h2>Order Details</h2><p class="muted">Enter these once for the phones in this order.</p></div></div>
+          <div class="input-row runner-order-fields">
+            <input id="runnerOrderMethod" class="text-input" type="text" placeholder="Order method" />
+            <input id="runnerPaymentMethod" class="text-input" type="text" placeholder="Payment method" />
+            <input id="runnerOrderDate" class="text-input" type="date" />
+            <input id="runnerPrice" class="text-input" type="number" step="0.01" placeholder="Price" />
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="section-head"><div><h2>Scan Box Photo</h2><p class="muted">Take a clear photo of the back of the box. OCR will read the product, serial number, and IMEIs.</p></div></div>
+          <input id="runnerBoxPhoto" class="file-input" type="file" accept="image/*" capture="environment" />
+          <div id="runnerOcrResult" class="scan-result" aria-live="polite"></div>
+        </section>
+
+        <section class="card">
           <div class="section-head">
-            <div><h2>Excel Paste Output</h2><p class="muted">Copy this and paste it into the IMEI column in your sheet.</p></div>
+            <div><h2>Excel Paste Output</h2><p class="muted">Copy this and paste it into the matching starting cell in your sheet.</p></div>
             <span id="runnerOutputBadge" class="badge">0 rows</span>
           </div>
-          <textarea id="runnerOutput" class="textarea runner-output" readonly placeholder="Scanned IMEIs will appear here, two rows per phone."></textarea>
+          <textarea id="runnerOutput" class="textarea runner-output" readonly placeholder="Scanned box rows will appear here, ready for Excel."></textarea>
           <div class="card-actions">
             <button id="copyRunnerOutputBtn" class="btn btn-primary" type="button">Copy For Excel</button>
             <button id="clearRunnerOutputBtn" class="btn btn-light" type="button">Clear Output</button>

@@ -474,13 +474,29 @@ const runnerRowCount = document.getElementById("runnerRowCount");
 const runnerOutputBadge = document.getElementById("runnerOutputBadge");
 const copyRunnerOutputBtn = document.getElementById("copyRunnerOutputBtn");
 const clearRunnerOutputBtn = document.getElementById("clearRunnerOutputBtn");
+const runnerOrderMethod = document.getElementById("runnerOrderMethod");
+const runnerPaymentMethod = document.getElementById("runnerPaymentMethod");
+const runnerOrderDate = document.getElementById("runnerOrderDate");
+const runnerPrice = document.getElementById("runnerPrice");
+const runnerBoxPhoto = document.getElementById("runnerBoxPhoto");
+const runnerOcrResult = document.getElementById("runnerOcrResult");
 let runnerImeis = JSON.parse(localStorage.getItem("imei-runner-imeis") || "[]");
+let runnerRows = JSON.parse(localStorage.getItem("imei-runner-rows") || "[]");
+
+function runnerFields(){
+    return [runnerOrderMethod.value.trim(), runnerPaymentMethod.value.trim(), runnerOrderDate.value, "", runnerPrice.value.trim(), ""];
+}
+
+function renderRunnerRows(){
+    const fields = runnerFields();
+    runnerOutput.value = runnerRows.map(row => [...fields.slice(0, 3), row.product, row.serial, row.imei, row.price || fields[4], row.total || "", row.input || ""].join("\t")).join("\n");
+    runnerScanCount.textContent = runnerRows.length;
+    runnerRowCount.textContent = runnerRows.length;
+    runnerOutputBadge.textContent = `${runnerRows.length} rows`;
+}
 
 function renderRunnerOutput(){
-    runnerOutput.value = runnerImeis.flatMap(imei => [imei, imei]).join("\n");
-    runnerScanCount.textContent = runnerImeis.length;
-    runnerRowCount.textContent = runnerImeis.length * 2;
-    runnerOutputBadge.textContent = `${runnerImeis.length * 2} rows`;
+    renderRunnerRows();
 }
 
 function scanRunnerImei(){
@@ -501,7 +517,9 @@ function scanRunnerImei(){
     }
 
     runnerImeis.push(imei);
+    runnerRows.push({product:"", serial:"", imei, price:"", total:"", input:""});
     localStorage.setItem("imei-runner-imeis", JSON.stringify(runnerImeis));
+    localStorage.setItem("imei-runner-rows", JSON.stringify(runnerRows));
     renderRunnerOutput();
     runnerScanResult.className = "scan-result result-success";
     runnerScanResult.textContent = `Added ${imei}. Two Excel rows ready.`;
@@ -536,10 +554,12 @@ copyRunnerOutputBtn.addEventListener("click", async () => {
 });
 
 clearRunnerOutputBtn.addEventListener("click", () => {
-    if(!runnerImeis.length) return;
+    if(!runnerRows.length) return;
     if(!confirm("Clear this runner batch?")) return;
     runnerImeis = [];
+    runnerRows = [];
     localStorage.removeItem("imei-runner-imeis");
+    localStorage.removeItem("imei-runner-rows");
     renderRunnerOutput();
     runnerScanResult.textContent = "Output cleared.";
     runnerScanResult.className = "scan-result result-success";
@@ -547,6 +567,54 @@ clearRunnerOutputBtn.addEventListener("click", () => {
 });
 
 renderRunnerOutput();
+
+function addRunnerBoxRows(text){
+    const normalized = text.replace(/\r/g, " ").replace(/\n/g, " ");
+    const imeis = [...new Set((normalized.match(/\b\d{15}\b/g) || []).filter(isValidImei))];
+    const serialMatch = normalized.match(/(?:serial(?:\s*no\.?)?|s\/n)\s*[:#-]?\s*([A-Z0-9]{8,16})/i);
+    const productMatch = normalized.match(/(iPhone\s+\d{1,2}\s+(?:pro\s+max|pro|max)?\s*[A-Za-z]+\s+\d{2,4}GB)/i);
+    const product = productMatch ? productMatch[1].replace(/\s+/g, " ").trim() : "";
+    const serial = serialMatch ? serialMatch[1] : "";
+
+    if(!imeis.length){
+        runnerOcrResult.className = "scan-result result-error";
+        runnerOcrResult.textContent = "OCR could not find a valid 15-digit IMEI. Take a closer, brighter photo.";
+        return;
+    }
+
+    imeis.forEach(imei => {
+        if(runnerRows.some(row => row.imei === imei)) return;
+        runnerRows.push({product, serial, imei, price:runnerPrice.value.trim(), total:"", input:""});
+        runnerImeis.push(imei);
+    });
+    localStorage.setItem("imei-runner-imeis", JSON.stringify(runnerImeis));
+    localStorage.setItem("imei-runner-rows", JSON.stringify(runnerRows));
+    renderRunnerOutput();
+    runnerOcrResult.className = "scan-result result-success";
+    runnerOcrResult.textContent = `${imeis.length} IMEI(s) found${serial ? ` and serial ${serial}` : ""}. Review the output before copying.`;
+}
+
+runnerBoxPhoto.addEventListener("change", async () => {
+    const file = runnerBoxPhoto.files[0];
+    if(!file) return;
+    if(!window.Tesseract){
+        runnerOcrResult.textContent = "OCR library is unavailable. Use the barcode scanner input.";
+        runnerOcrResult.className = "scan-result result-error";
+        return;
+    }
+    runnerOcrResult.className = "scan-result";
+    runnerOcrResult.textContent = "Reading box photo...";
+    try{
+        const result = await Tesseract.recognize(file, "eng");
+        addRunnerBoxRows(result.data.text);
+    }catch(error){
+        console.error(error);
+        runnerOcrResult.className = "scan-result result-error";
+        runnerOcrResult.textContent = "Unable to read this photo.";
+    }
+});
+
+[runnerOrderMethod, runnerPaymentMethod, runnerOrderDate, runnerPrice].forEach(input => input.addEventListener("input", renderRunnerRows));
 
 const matchTotal =
     document.getElementById("matchTotal");
